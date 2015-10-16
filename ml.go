@@ -39,7 +39,7 @@ type pyMLMsgpack struct {
 // NewPyMLState creates `core.SharedState` for multiple layer classification.
 func NewPyMLState(modulePathName, moduleName, className string, batchSize int,
 	params data.Map) (*PyMLState, error) {
-	ins, err := newPyInstance(modulePathName, moduleName, className, []data.Value{params}...)
+	ins, err := newPyInstance("create", modulePathName, moduleName, className, []data.Value{params}...)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func NewPyMLState(modulePathName, moduleName, className string, batchSize int,
 
 // newPyInstance creates a new Python class instance.
 // User must call DecRef method to release a resource.
-func newPyInstance(modulePathName, moduleName, className string, args ...data.Value) (py.ObjectInstance, error) {
+func newPyInstance(createMethodName, modulePathName, moduleName, className string, args ...data.Value) (py.ObjectInstance, error) {
 	var null py.ObjectInstance
 	py.ImportSysAndAppendPath(modulePathName)
 
@@ -61,12 +61,14 @@ func newPyInstance(modulePathName, moduleName, className string, args ...data.Va
 	}
 	defer mdl.DecRef()
 
-	ins, err := mdl.NewInstance(className, args...)
+	class, err := mdl.GetClass(className)
 	if err != nil {
 		return null, err
 	}
+	defer class.DecRef()
 
-	return ins, nil
+	ins, err := class.CallDirect(createMethodName, args...)
+	return py.ObjectInstance{ins}, err
 }
 
 // set sets or overwrites fields of PyMLState struct.
@@ -240,21 +242,13 @@ func (s *PyMLState) loadPyMsgpackAndData(r io.Reader) error {
 		return err
 	}
 
-	ins, err := newPyInstance(saved.ModulePath, saved.ModuleName, saved.ClassName, []data.Value{data.Map{}}...)
-	if err != nil {
-		return err
-	}
-	// Created instance must be called DecRef when failure occurred
-
 	dat, err := ioutil.ReadAll(r)
 	if err != nil {
-		ins.DecRef()
 		return err
 	}
 
-	_, err = ins.Call("load", data.Blob(dat))
+	ins, err := newPyInstance("load", saved.ModulePath, saved.ModuleName, saved.ClassName, []data.Value{data.Map{}, data.Blob(dat)}...)
 	if err != nil {
-		ins.DecRef()
 		return err
 	}
 
