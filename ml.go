@@ -1,8 +1,10 @@
 package mlstate
 
 import (
-	"bytes"
+	"encoding/binary"
+	"errors"
 	"fmt"
+	"github.com/ugorji/go/codec"
 	"io"
 	"io/ioutil"
 	"pfi/sensorbee/pystate/py"
@@ -17,33 +19,62 @@ var (
 
 // PyMLState is python instance specialized to multiple layer classification.
 type PyMLState struct {
+	modulePath string
+	moduleName string
+	className  string
+
 	ins py.ObjectInstance
 
 	bucket    data.Array
 	batchSize int
 }
 
+type pyMLMsgpack struct {
+	ModulePath string `codec:"module_path"`
+	ModuleName string `codec:"module_name"`
+	ClassName  string `codec:"class_name"`
+	BatchSize  int    `codec:"batch_size"`
+}
+
 // NewPyMLState creates `core.SharedState` for multiple layer classification.
 func NewPyMLState(modulePathName, moduleName, className string, batchSize int,
 	params data.Map) (*PyMLState, error) {
+	ins, err := newPyInstance(modulePathName, moduleName, className, []data.Value{params}...)
+	if err != nil {
+		return nil, err
+	}
+
+	s := &PyMLState{}
+	s.init(ins, modulePathName, moduleName, className, batchSize)
+	return s, nil
+}
+
+func newPyInstance(modulePathName, moduleName, className string, params ...data.Value) (py.ObjectInstance, error) {
+	var null py.ObjectInstance
 	py.ImportSysAndAppendPath(modulePathName)
 
 	mdl, err := py.LoadModule(moduleName)
 	if err != nil {
-		return nil, err
+		return null, err
 	}
 	defer mdl.DecRef()
 
-	ins, err := mdl.NewInstance(className, params)
+	ins, err := mdl.NewInstance(className, params...)
 	if err != nil {
-		return nil, err
+		return null, err
 	}
 
-	return &PyMLState{
-		ins:       ins,
-		bucket:    make(data.Array, 0, batchSize),
-		batchSize: batchSize,
-	}, nil
+	return ins, nil
+}
+
+func (s *PyMLState) init(ins py.ObjectInstance, modulePathName, moduleName, className string,
+	batchSize int) {
+	s.modulePath = modulePathName
+	s.moduleName = moduleName
+	s.className = className
+	s.ins = ins
+	s.bucket = make(data.Array, 0, batchSize)
+	s.batchSize = batchSize
 }
 
 // Terminate this state.
@@ -103,6 +134,12 @@ func (s *PyMLState) FitMap(ctx *core.Context, bucket []data.Map) (data.Value, er
 // Save saves the model of the state. pystate calls `save` method and
 // use its return value as dumped model.
 func (s *PyMLState) Save(ctx *core.Context, w io.Writer, params data.Map) error {
+	// TODO: Use RWMutex
+
+	if err := s.savePyMLMsgpack(w); err != nil {
+		return err
+	}
+
 	res, err := s.ins.Call("save")
 	if err != nil {
 		return err
@@ -113,14 +150,96 @@ func (s *PyMLState) Save(ctx *core.Context, w io.Writer, params data.Map) error 
 		return err
 	}
 
-	buf := bytes.NewBuffer(b)
-	_, err = buf.WriteTo(w)
-	return err
+	n, err := w.Write(b)
+	if err != nil {
+		return err
+	}
+	if n < len(b) {
+		return errors.New("cannot write saved model data")
+	}
+
+	return nil
 }
 
-// Load loads the model of the state. pystate calls `load` method and
+func (s *PyMLState) savePyMLMsgpack(w io.Writer) error {
+	// TODO: Write format version
+
+	// Save parameter of PyMLState before save python's model
+	save := &pyMLMsgpack{
+		ModulePath: s.modulePath,
+		ModuleName: s.moduleName,
+		ClassName:  s.className,
+		BatchSize:  s.batchSize,
+	}
+
+	msgpackHandle := &codec.MsgpackHandle{}
+	var out []byte
+	enc := codec.NewEncoderBytes(&out, msgpackHandle)
+	if err := enc.Encode(save); err != nil {
+		return err
+	}
+
+	// Write size of pyMLMsgpack
+	dataSize := uint32(len(out))
+	err := binary.Write(w, binary.LittleEndian, dataSize)
+	if err != nil {
+		return err
+	}
+
+	// Write pyMLMsgpack in msgpack
+	n, err := w.Write(out)
+	if err != nil {
+		return err
+	}
+
+	if n < len(out) {
+		return errors.New("cannot save the pyMLMsgpack data")
+	}
+
+	return nil
+}
+
+// load loads the model of the state. pystate calls `load` method and
 // pass to the model data by using method parameter.
-func (s *PyMLState) Load(ctx *core.Context, r io.Reader, params data.Map) error {
+func (s *PyMLState) load(ctx *core.Context, r io.Reader, params data.Map) error {
+	// TODO: Use RWMutex
+	return s.loadPyMsgpackAndData(r)
+}
+
+func (s *PyMLState) loadPyMsgpackAndData(r io.Reader) error {
+	var dataSize uint32
+	if err := binary.Read(r, binary.LittleEndian, &dataSize); err != nil {
+		return err
+	}
+	if dataSize <= 0 {
+		return errors.New("size of pyMLMsgpack must be greater than 0")
+	}
+
+	// Read pyMLMsgpack from reader
+	buf := make([]byte, dataSize)
+	n, err := r.Read(buf)
+	if err != nil {
+		return err
+	}
+	if n != int(dataSize) {
+		return errors.New("read size is different from pyMLMsgpack")
+	}
+
+	// Desirialize pyMLMsgpack
+	var saved pyMLMsgpack
+	msgpackHandle := &codec.MsgpackHandle{}
+	dec := codec.NewDecoderBytes(buf, msgpackHandle)
+	if err := dec.Decode(&saved); err != nil {
+		return err
+	}
+
+	ins, err := newPyInstance(saved.ModulePath, saved.ModuleName, saved.ClassName, []data.Value{data.Map{}}...)
+	if err != nil {
+		return err
+	}
+
+	s.init(ins, saved.ModulePath, saved.ModuleName, saved.ClassName, saved.BatchSize)
+
 	dat, err := ioutil.ReadAll(r)
 	if err != nil {
 		return err

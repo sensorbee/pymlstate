@@ -79,5 +79,9 @@ func (c *PyMLStateCreator) CreateState(ctx *core.Context, params data.Map) (
 // LoadState is same as CREATE STATE.
 func (c *PyMLStateCreator) LoadState(ctx *core.Context, r io.Reader, params data.Map) (
 	core.SharedState, error) {
-	return c.CreateState(ctx, params)
+	ss := &PyMLState{}
+	if err := ss.load(ctx, r, params); err != nil {
+		return nil, err
+	}
+	return ss, nil
 }
