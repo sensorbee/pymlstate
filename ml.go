@@ -49,7 +49,7 @@ func NewPyMLState(modulePathName, moduleName, className string, batchSize int,
 	return s, nil
 }
 
-func newPyInstance(modulePathName, moduleName, className string, params ...data.Value) (py.ObjectInstance, error) {
+func newPyInstance(modulePathName, moduleName, className string, args ...data.Value) (py.ObjectInstance, error) {
 	var null py.ObjectInstance
 	py.ImportSysAndAppendPath(modulePathName)
 
@@ -59,7 +59,7 @@ func newPyInstance(modulePathName, moduleName, className string, params ...data.
 	}
 	defer mdl.DecRef()
 
-	ins, err := mdl.NewInstance(className, params...)
+	ins, err := mdl.NewInstance(className, args...)
 	if err != nil {
 		return null, err
 	}
