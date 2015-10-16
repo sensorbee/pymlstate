@@ -69,6 +69,8 @@ func newPyInstance(modulePathName, moduleName, className string, args ...data.Va
 
 func (s *PyMLState) set(ins py.ObjectInstance, modulePathName, moduleName, className string,
 	batchSize int) {
+	s.ins.DecRef()
+
 	s.modulePath = modulePathName
 	s.moduleName = moduleName
 	s.className = className
