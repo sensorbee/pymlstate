@@ -45,7 +45,7 @@ func NewPyMLState(modulePathName, moduleName, className string, batchSize int,
 	}
 
 	s := &PyMLState{}
-	s.init(ins, modulePathName, moduleName, className, batchSize)
+	s.set(ins, modulePathName, moduleName, className, batchSize)
 	return s, nil
 }
 
@@ -67,7 +67,7 @@ func newPyInstance(modulePathName, moduleName, className string, args ...data.Va
 	return ins, nil
 }
 
-func (s *PyMLState) init(ins py.ObjectInstance, modulePathName, moduleName, className string,
+func (s *PyMLState) set(ins py.ObjectInstance, modulePathName, moduleName, className string,
 	batchSize int) {
 	s.modulePath = modulePathName
 	s.moduleName = moduleName
@@ -238,7 +238,7 @@ func (s *PyMLState) loadPyMsgpackAndData(r io.Reader) error {
 		return err
 	}
 
-	s.init(ins, saved.ModulePath, saved.ModuleName, saved.ClassName, saved.BatchSize)
+	s.set(ins, saved.ModulePath, saved.ModuleName, saved.ClassName, saved.BatchSize)
 
 	dat, err := ioutil.ReadAll(r)
 	if err != nil {
