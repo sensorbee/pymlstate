@@ -239,16 +239,23 @@ func (s *PyMLState) loadPyMsgpackAndData(r io.Reader) error {
 	if err != nil {
 		return err
 	}
-
-	s.set(ins, saved.ModulePath, saved.ModuleName, saved.ClassName, saved.BatchSize)
+	// Created instance must be called DecRef when failure occurred
 
 	dat, err := ioutil.ReadAll(r)
 	if err != nil {
+		ins.DecRef()
 		return err
 	}
 
-	_, err = s.ins.Call("load", data.Blob(dat))
-	return err
+	_, err = ins.Call("load", data.Blob(dat))
+	if err != nil {
+		ins.DecRef()
+		return err
+	}
+
+	// Exchange instance in `s` when Load succeeded
+	s.set(ins, saved.ModulePath, saved.ModuleName, saved.ClassName, saved.BatchSize)
+	return nil
 }
 
 // PyMLFit fits buckets. fit algorithm and return value is depends on Python
