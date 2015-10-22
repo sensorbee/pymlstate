@@ -201,7 +201,7 @@ func (s *PyMLState) savePyMLMsgpack(w io.Writer) error {
 	return nil
 }
 
-// load loads the model of the state. pystate calls `load` method and
+// Load loads the model of the state. pystate calls `load` method and
 // pass to the model data by using method parameter.
 func (s *PyMLState) Load(ctx *core.Context, r io.Reader, params data.Map) error {
 	// TODO: Use RWMutex
