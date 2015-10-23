@@ -168,8 +168,14 @@ func (s *PyMLState) Save(ctx *core.Context, w io.Writer, params data.Map) error 
 	return nil
 }
 
+const (
+	pyMLStateFormatVersion uint8 = 1
+)
+
 func (s *PyMLState) savePyMLMsgpack(w io.Writer) error {
-	// TODO: Write format version
+	if _, err := w.Write([]byte{pyMLStateFormatVersion}); err != nil {
+		return err
+	}
 
 	// Save parameter of PyMLState before save python's model
 	save := &pyMLMsgpack{
@@ -210,7 +216,18 @@ func (s *PyMLState) savePyMLMsgpack(w io.Writer) error {
 // pass to the model data by using method parameter.
 func (s *PyMLState) Load(ctx *core.Context, r io.Reader, params data.Map) error {
 	// TODO: Use RWMutex
-	return s.loadPyMsgpackAndData(r)
+
+	var formatVersion uint8
+	if err := binary.Read(r, binary.LittleEndian, &formatVersion); err != nil {
+		return err
+	}
+
+	switch formatVersion {
+	case 1:
+		return s.loadPyMsgpackAndData(r)
+	default:
+		return fmt.Errorf("unsupported format version of PyMLState container: %v", formatVersion)
+	}
 }
 
 func (s *PyMLState) loadPyMsgpackAndData(r io.Reader) error {
