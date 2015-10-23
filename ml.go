@@ -49,6 +49,8 @@ func NewPyMLState(modulePathName, moduleName, className string, batchSize int,
 	return s, nil
 }
 
+// newPyInstance creates a new Python class instance.
+// User must call DecRef method to release a resource.
 func newPyInstance(modulePathName, moduleName, className string, args ...data.Value) (py.ObjectInstance, error) {
 	var null py.ObjectInstance
 	py.ImportSysAndAppendPath(modulePathName)
@@ -67,6 +69,9 @@ func newPyInstance(modulePathName, moduleName, className string, args ...data.Va
 	return ins, nil
 }
 
+// set sets or overwrites fields of PyMLState struct.
+// This method steals a reference of ins object.
+// Caller must not call `s.ins.DecRef()` because set calls DecRef for old ins object.
 func (s *PyMLState) set(ins py.ObjectInstance, modulePathName, moduleName, className string,
 	batchSize int) {
 	s.ins.DecRef()
