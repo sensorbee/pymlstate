@@ -16,6 +16,8 @@ var (
 )
 
 // PyMLState is python instance specialized to multiple layer classification.
+// The python instance and this struct must not be coppied directly by assignment
+// statement because it doesn't increase reference count of instance.
 type PyMLState struct {
 	ins py.ObjectInstance
 
