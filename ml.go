@@ -7,7 +7,7 @@ import (
 	"github.com/ugorji/go/codec"
 	"io"
 	"io/ioutil"
-	"pfi/sensorbee/pystate/py"
+	py "pfi/sensorbee/py/p"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
 )
