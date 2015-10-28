@@ -218,7 +218,7 @@ func (s *PyMLState) loadPyMsgpackAndData(r io.Reader) error {
 	if err := binary.Read(r, binary.LittleEndian, &dataSize); err != nil {
 		return err
 	}
-	if dataSize <= 0 {
+	if dataSize == 0 {
 		return errors.New("size of pyMLMsgpack must be greater than 0")
 	}
 
