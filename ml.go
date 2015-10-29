@@ -224,13 +224,13 @@ func (s *PyMLState) Load(ctx *core.Context, r io.Reader, params data.Map) error 
 
 	switch formatVersion {
 	case 1:
-		return s.loadPyMsgpackAndData(r)
+		return s.loadPyMsgpackAndDataV1(r)
 	default:
 		return fmt.Errorf("unsupported format version of PyMLState container: %v", formatVersion)
 	}
 }
 
-func (s *PyMLState) loadPyMsgpackAndData(r io.Reader) error {
+func (s *PyMLState) loadPyMsgpackAndDataV1(r io.Reader) error {
 	var dataSize uint32
 	if err := binary.Read(r, binary.LittleEndian, &dataSize); err != nil {
 		return err
