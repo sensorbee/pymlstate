@@ -17,23 +17,39 @@ from chainer import optimizers
 
 class MNIST(object):
 
-    def __init__(self, params):
+    @staticmethod
+    def create(params):
+        self = MNIST()
+        if 'model_file_path' in params:
+            with open(params['model_file_path']) as model_pickle:
+                self.model = six.moves.cPickle.load(model_pickle)
+        else:
+            n_units = 1000
+            self.model = FunctionSet(
+                l1=F.Linear(784, n_units),
+                l2=F.Linear(n_units, n_units),
+                l3=F.Linear(n_units, 10))
         if 'gpu' in params:
             self.gpu = params['gpu']
         else:
             self.gpu = -1
 
-        n_units = 1000
+        self.prepare_gpu_and_optimizer()
+        return self
 
-        if 'model_file_path' in params:
-            with open(params['model_file_path'], 'rb') as model_pickle:
-                self.model = six.moves.cPickle.load(model_pickle)
+    @staticmethod
+    def load(params, model_data):
+        self = MNIST()
+        if 'gpu' in params:
+            self.gpu = params['gpu']
         else:
-            self.model = FunctionSet(
-                l1=F.Linear(784, n_units),
-                l2=F.Linear(n_units, n_units),
-                l3=F.Linear(n_units, 10))
+            self.gpu = -1
 
+        self.load_model(model_data)
+        self.prepare_gpu_and_optimizer()
+        return self
+
+    def prepare_gpu_and_optimizer(self):
         if self.gpu >= 0:
             cuda.init(self.gpu)
             self.model.to_gpu()
@@ -101,5 +117,5 @@ class MNIST(object):
     def save(self):
         return bytearray(six.moves.cPickle.dumps(self.model))
 
-    def load(self, model_data):
+    def load_model(self, model_data):
         self.model = six.moves.cPickle.loads(str(model_data))
