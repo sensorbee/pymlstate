@@ -15,6 +15,8 @@ import (
 var (
 	lossPath = data.MustCompilePath("loss")
 	accPath  = data.MustCompilePath("accuracy")
+
+	ErrAlreadyTerminated = errors.New("PyMLState is already terminated")
 )
 
 // PyMLState is python instance specialized to multiple layer classification.
@@ -25,7 +27,7 @@ type PyMLState struct {
 	moduleName string
 	className  string
 
-	ins py.ObjectInstance
+	ins *py.ObjectInstance
 
 	bucket    data.Array
 	batchSize int
@@ -78,24 +80,32 @@ func newPyInstance(createMethodName, modulePathName, moduleName, className strin
 // Caller must not call `s.ins.DecRef()` because set calls DecRef for old ins object.
 func (s *PyMLState) set(ins py.ObjectInstance, modulePathName, moduleName, className string,
 	batchSize int) {
-	s.ins.DecRef()
+	if s.ins != nil {
+		s.ins.DecRef()
+	}
 
 	s.modulePath = modulePathName
 	s.moduleName = moduleName
 	s.className = className
-	s.ins = ins
+	s.ins = &ins
 	s.bucket = make(data.Array, 0, batchSize)
 	s.batchSize = batchSize
 }
 
 // Terminate this state.
 func (s *PyMLState) Terminate(ctx *core.Context) error {
+	if s.ins == nil {
+		return nil // This isn't an error in Terminate.
+	}
 	s.ins.DecRef()
 	return nil
 }
 
 // Write and call "fit" function. Tuples is cached per train batch size.
 func (s *PyMLState) Write(ctx *core.Context, t *core.Tuple) error {
+	if s.ins == nil {
+		return ErrAlreadyTerminated
+	}
 	s.bucket = append(s.bucket, t.Data)
 
 	var err error
@@ -130,11 +140,17 @@ func (s *PyMLState) Write(ctx *core.Context, t *core.Tuple) error {
 // Fit receives `data.Array` type but it assumes `[]data.Map` type
 // for passing arguments to `fit` method.
 func (s *PyMLState) Fit(ctx *core.Context, bucket data.Array) (data.Value, error) {
+	if s.ins == nil {
+		return nil, ErrAlreadyTerminated
+	}
 	return s.ins.Call("fit", bucket)
 }
 
 // FitMap receives `[]data.Map`, these maps are converted to `data.Array`
 func (s *PyMLState) FitMap(ctx *core.Context, bucket []data.Map) (data.Value, error) {
+	if s.ins == nil {
+		return nil, ErrAlreadyTerminated
+	}
 	args := make(data.Array, len(bucket))
 	for i, v := range bucket {
 		args[i] = v
@@ -146,6 +162,9 @@ func (s *PyMLState) FitMap(ctx *core.Context, bucket []data.Map) (data.Value, er
 // use its return value as dumped model.
 func (s *PyMLState) Save(ctx *core.Context, w io.Writer, params data.Map) error {
 	// TODO: Use RWMutex
+	if s.ins == nil {
+		return ErrAlreadyTerminated
+	}
 
 	if err := s.savePyMLMsgpack(w); err != nil {
 		return err
@@ -220,6 +239,9 @@ func (s *PyMLState) savePyMLMsgpack(w io.Writer) error {
 // pass to the model data by using method parameter.
 func (s *PyMLState) Load(ctx *core.Context, r io.Reader, params data.Map) error {
 	// TODO: Use RWMutex
+	if s.ins == nil {
+		return ErrAlreadyTerminated
+	}
 
 	var formatVersion uint8
 	if err := binary.Read(r, binary.LittleEndian, &formatVersion); err != nil {
