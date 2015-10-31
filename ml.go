@@ -10,6 +10,7 @@ import (
 	py "pfi/sensorbee/py/p"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
+	"sync"
 )
 
 var (
@@ -31,6 +32,8 @@ type PyMLState struct {
 
 	bucket    data.Array
 	batchSize int
+
+	rwm sync.RWMutex
 }
 
 type pyMLMsgpack struct {
@@ -94,6 +97,8 @@ func (s *PyMLState) set(ins py.ObjectInstance, modulePathName, moduleName, class
 
 // Terminate this state.
 func (s *PyMLState) Terminate(ctx *core.Context) error {
+	s.rwm.Lock()
+	defer s.rwm.Unlock()
 	if s.ins == nil {
 		return nil // This isn't an error in Terminate.
 	}
@@ -103,6 +108,8 @@ func (s *PyMLState) Terminate(ctx *core.Context) error {
 
 // Write and call "fit" function. Tuples is cached per train batch size.
 func (s *PyMLState) Write(ctx *core.Context, t *core.Tuple) error {
+	s.rwm.Lock()
+	defer s.rwm.Unlock()
 	if s.ins == nil {
 		return ErrAlreadyTerminated
 	}
@@ -110,7 +117,7 @@ func (s *PyMLState) Write(ctx *core.Context, t *core.Tuple) error {
 
 	var err error
 	if len(s.bucket) >= s.batchSize {
-		m, er := s.Fit(ctx, s.bucket)
+		m, er := s.fit(ctx, s.bucket)
 		err = er
 		s.bucket = s.bucket[:0] // clear slice but keep capacity
 
@@ -140,28 +147,54 @@ func (s *PyMLState) Write(ctx *core.Context, t *core.Tuple) error {
 // Fit receives `data.Array` type but it assumes `[]data.Map` type
 // for passing arguments to `fit` method.
 func (s *PyMLState) Fit(ctx *core.Context, bucket data.Array) (data.Value, error) {
+	s.rwm.RLock()
+	defer s.rwm.RUnlock()
 	if s.ins == nil {
 		return nil, ErrAlreadyTerminated
 	}
+	return s.fit(ctx, bucket)
+}
+
+// fit is the internal implementation of Fit. fit doesn't acquire the lock nor
+// check s.ins == nil. RLock is sufficient when calling this method because
+// this method itself doesn't change any field of PyMLState. Although the model
+// will be updated by the data, the model is protected by Python's GIL. So,
+// this method doesn't require a write lock.
+func (s *PyMLState) fit(ctx *core.Context, bucket data.Array) (data.Value, error) {
 	return s.ins.Call("fit", bucket)
 }
 
 // FitMap receives `[]data.Map`, these maps are converted to `data.Array`
 func (s *PyMLState) FitMap(ctx *core.Context, bucket []data.Map) (data.Value, error) {
-	if s.ins == nil {
-		return nil, ErrAlreadyTerminated
-	}
 	args := make(data.Array, len(bucket))
 	for i, v := range bucket {
 		args[i] = v
 	}
+
+	s.rwm.RLock() // Same as fit method. This doesn't have to be Lock().
+	defer s.rwm.RUnlock()
+	if s.ins == nil {
+		return nil, ErrAlreadyTerminated
+	}
 	return s.ins.Call("fit", args)
+}
+
+// Predict applies the model to the data. It returns a result returned from
+// Python script.
+func (s *PyMLState) Predict(ctx *core.Context, dt data.Value) (data.Value, error) {
+	s.rwm.RLock()
+	defer s.rwm.RUnlock()
+	if s.ins == nil {
+		return nil, ErrAlreadyTerminated
+	}
+	return s.ins.Call("predict", dt)
 }
 
 // Save saves the model of the state. pystate calls `save` method and
 // use its return value as dumped model.
 func (s *PyMLState) Save(ctx *core.Context, w io.Writer, params data.Map) error {
-	// TODO: Use RWMutex
+	s.rwm.RLock()
+	defer s.rwm.RUnlock()
 	if s.ins == nil {
 		return ErrAlreadyTerminated
 	}
@@ -238,7 +271,8 @@ func (s *PyMLState) savePyMLMsgpack(w io.Writer) error {
 // Load loads the model of the state. pystate calls `load` method and
 // pass to the model data by using method parameter.
 func (s *PyMLState) Load(ctx *core.Context, r io.Reader, params data.Map) error {
-	// TODO: Use RWMutex
+	s.rwm.Lock()
+	defer s.rwm.Unlock()
 	if s.ins == nil {
 		return ErrAlreadyTerminated
 	}
@@ -316,7 +350,7 @@ func PyMLPredict(ctx *core.Context, stateName string, dt data.Value) (data.Value
 		return nil, err
 	}
 
-	return s.ins.Call("predict", dt)
+	return s.Predict(ctx, dt)
 }
 
 func lookupPyMLState(ctx *core.Context, stateName string) (*PyMLState, error) {
