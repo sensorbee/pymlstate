@@ -38,16 +38,9 @@ class MNIST(object):
         return self
 
     @staticmethod
-    def load(params, model_data):
-        self = MNIST()
-        if 'gpu' in params:
-            self.gpu = params['gpu']
-        else:
-            self.gpu = -1
-
-        self.load_model(model_data)
-        self.prepare_gpu_and_optimizer()
-        return self
+    def load(filepath, params):
+        with open(filepath, 'r') as f:
+            return six.moves.cPickle.load(f)
 
     def prepare_gpu_and_optimizer(self):
         if self.gpu >= 0:
@@ -114,8 +107,9 @@ class MNIST(object):
     def get_model(self):
         return self.model
 
-    def save(self):
-        return bytearray(six.moves.cPickle.dumps(self.model))
+    def save(self, filepath, params):
+        with open(filepath, 'w') as f:
+            six.moves.cPickle.dump(self, f)
 
     def load_model(self, model_data):
         self.model = six.moves.cPickle.loads(str(model_data))

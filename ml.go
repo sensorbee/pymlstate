@@ -7,6 +7,7 @@ import (
 	"github.com/ugorji/go/codec"
 	"io"
 	"io/ioutil"
+	"os"
 	py "pfi/sensorbee/py/p"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
@@ -203,25 +204,36 @@ func (s *PyMLState) Save(ctx *core.Context, w io.Writer, params data.Map) error 
 		return err
 	}
 
-	res, err := s.ins.Call("save")
+	temp, err := ioutil.TempFile("", "sensorbee_py_ml_state") // TODO: TempDir should be configurable
+	if err != nil {
+		return fmt.Errorf("cannot create a temporary file for saving data: %v", err)
+	}
+	filepath := temp.Name()
+	if err := temp.Close(); err != nil {
+		ctx.ErrLog(err).WithField("filepath", filepath).Warn("Cannot close the temporary file")
+	}
+	defer func() {
+		if err := os.Remove(filepath); err != nil && !os.IsNotExist(err) {
+			ctx.ErrLog(err).WithField("filepath", filepath).Warn("Cannot remove the temporary file")
+		}
+	}()
+
+	_, err = s.ins.Call("save", data.String(filepath), params)
 	if err != nil {
 		return err
 	}
 
-	b, err := data.AsBlob(res)
+	f, err := os.Open(filepath)
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot open the temporary file having the saved data: %v", err)
 	}
-
-	n, err := w.Write(b)
-	if err != nil {
-		return err
-	}
-	if n < len(b) {
-		return errors.New("cannot write saved model data")
-	}
-
-	return nil
+	defer func() {
+		if err := temp.Close(); err != nil {
+			ctx.ErrLog(err).WithField("filepath", filepath).Warn("Cannot close the temporary file")
+		}
+	}()
+	_, err = io.Copy(w, f)
+	return err
 }
 
 const (
@@ -282,15 +294,17 @@ func (s *PyMLState) Load(ctx *core.Context, r io.Reader, params data.Map) error 
 		return err
 	}
 
+	// TODO: remove PyMLState specific parameters from params
+
 	switch formatVersion {
 	case 1:
-		return s.loadPyMsgpackAndDataV1(r)
+		return s.loadPyMsgpackAndDataV1(ctx, r, params)
 	default:
 		return fmt.Errorf("unsupported format version of PyMLState container: %v", formatVersion)
 	}
 }
 
-func (s *PyMLState) loadPyMsgpackAndDataV1(r io.Reader) error {
+func (s *PyMLState) loadPyMsgpackAndDataV1(ctx *core.Context, r io.Reader, params data.Map) error {
 	var dataSize uint32
 	if err := binary.Read(r, binary.LittleEndian, &dataSize); err != nil {
 		return err
@@ -317,15 +331,41 @@ func (s *PyMLState) loadPyMsgpackAndDataV1(r io.Reader) error {
 		return err
 	}
 
-	dat, err := ioutil.ReadAll(r)
+	temp, err := ioutil.TempFile("", "sensorbee_py_ml_state") // TODO: TempDir should be configurable
+	if err != nil {
+		return fmt.Errorf("cannot create a temporary file to store the data to be loaded: %v", err)
+	}
+	filepath := temp.Name()
+	tempClosed := false
+	closeTemp := func() {
+		if tempClosed {
+			return
+		}
+		if err := temp.Close(); err != nil {
+			ctx.ErrLog(err).WithField("filepath", filepath).Warn("Cannot close the temporary file")
+		}
+		tempClosed = true
+	}
+	defer func() {
+		closeTemp()
+		if err := os.Remove(filepath); err != nil {
+			ctx.ErrLog(err).WithField("filepath", filepath).Warn("Cannot remove the temporary file")
+		}
+	}()
+	if _, err := io.Copy(temp, r); err != nil {
+		return err
+	}
+	closeTemp()
+
+	ins, err := newPyInstance("load", saved.ModulePath, saved.ModuleName, saved.ClassName, []data.Value{data.String(filepath), params}...)
 	if err != nil {
 		return err
 	}
 
-	ins, err := newPyInstance("load", saved.ModulePath, saved.ModuleName, saved.ClassName, []data.Value{data.Map{}, data.Blob(dat)}...)
-	if err != nil {
-		return err
-	}
+	// TODO: Support alternative load strategy.
+	// Currently, this method first loads a new model, and then release the old one.
+	// However, releasing the old model before loading the new model is sometimes
+	// required to reduce memory consumption. It should be configurable.
 
 	// Exchange instance in `s` when Load succeeded
 	s.set(ins, saved.ModulePath, saved.ModuleName, saved.ClassName, saved.BatchSize)
