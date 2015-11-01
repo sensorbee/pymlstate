@@ -104,6 +104,7 @@ func (s *PyMLState) Terminate(ctx *core.Context) error {
 		return nil // This isn't an error in Terminate.
 	}
 	s.ins.DecRef()
+	s.ins = nil
 	return nil
 }
 
