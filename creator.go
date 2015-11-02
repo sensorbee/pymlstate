@@ -1,4 +1,4 @@
-package mlstate
+package pymlstate
 
 import (
 	"fmt"

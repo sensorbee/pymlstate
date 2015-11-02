@@ -1,7 +1,7 @@
 package plugin
 
 import (
-	"pfi/sensorbee/pystate/mlstate/example/mnist"
+	"pfi/sensorbee/pymlstate/example/mnist"
 	"pfi/sensorbee/sensorbee/bql"
 )
 

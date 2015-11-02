@@ -1,15 +1,15 @@
 package plugin
 
 import (
-	"pfi/sensorbee/pystate/mlstate"
+	"pfi/sensorbee/pymlstate"
 	"pfi/sensorbee/sensorbee/bql/udf"
 )
 
 func init() {
-	udf.MustRegisterGlobalUDSCreator("pymlstate", &mlstate.PyMLStateCreator{})
+	udf.MustRegisterGlobalUDSCreator("pymlstate", &pymlstate.PyMLStateCreator{})
 
 	udf.MustRegisterGlobalUDF("pymlstate_fit",
-		udf.MustConvertGeneric(mlstate.PyMLFit))
+		udf.MustConvertGeneric(pymlstate.PyMLFit))
 	udf.MustRegisterGlobalUDF("pymlstate_predict",
-		udf.MustConvertGeneric(mlstate.PyMLPredict))
+		udf.MustConvertGeneric(pymlstate.PyMLPredict))
 }
