@@ -3,6 +3,7 @@ package mnist
 import (
 	"fmt"
 	. "github.com/smartystreets/goconvey/convey"
+	"os"
 	"pfi/sensorbee/sensorbee/bql"
 	"pfi/sensorbee/sensorbee/core"
 	"pfi/sensorbee/sensorbee/data"
@@ -66,8 +67,7 @@ func TestCreateSource(t *testing.T) {
 			}
 			Convey("Then the creator should return not found error", func() {
 				s, err := dc.CreateSource(ctx, ioParams, params)
-				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldContainSubstring, "no such file")
+				So(os.IsNotExist(err), ShouldBeTrue)
 				So(s, ShouldBeNil)
 			})
 		})
@@ -79,8 +79,7 @@ func TestCreateSource(t *testing.T) {
 			}
 			Convey("Then the creator should return not found error", func() {
 				s, err := dc.CreateSource(ctx, ioParams, params)
-				So(err, ShouldNotBeNil)
-				So(err.Error(), ShouldContainSubstring, "no such file")
+				So(os.IsNotExist(err), ShouldBeTrue)
 				So(s, ShouldBeNil)
 			})
 		})
