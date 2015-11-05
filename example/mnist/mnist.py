@@ -18,10 +18,10 @@ from chainer import optimizers
 class MNIST(object):
 
     @staticmethod
-    def create(params):
+    def create(*args, **kwargs):
         self = MNIST()
-        if 'model_file_path' in params:
-            with open(params['model_file_path']) as model_pickle:
+        if 'model_file_path' in kwargs:
+            with open(kwargs['model_file_path']) as model_pickle:
                 self.model = six.moves.cPickle.load(model_pickle)
         else:
             n_units = 1000
@@ -29,8 +29,8 @@ class MNIST(object):
                 l1=F.Linear(784, n_units),
                 l2=F.Linear(n_units, n_units),
                 l3=F.Linear(n_units, 10))
-        if 'gpu' in params:
-            self.gpu = params['gpu']
+        if 'gpu' in kwargs:
+            self.gpu = kwargs['gpu']
         else:
             self.gpu = -1
 
@@ -38,7 +38,7 @@ class MNIST(object):
         return self
 
     @staticmethod
-    def load(filepath, params):
+    def load(filepath, *args, **kwargs):
         with open(filepath, 'r') as f:
             return six.moves.cPickle.load(f)
 
@@ -107,7 +107,7 @@ class MNIST(object):
     def get_model(self):
         return self.model
 
-    def save(self, filepath, params):
+    def save(self, filepath, *args, **kwargs):
         with open(filepath, 'w') as f:
             six.moves.cPickle.dump(self, f)
 
