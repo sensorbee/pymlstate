@@ -10,28 +10,20 @@ import (
 )
 
 var (
-	modulePath         = data.MustCompilePath("module_path")
-	moduleNamePath     = data.MustCompilePath("module_name")
-	classNamePath      = data.MustCompilePath("class_name")
 	batchTrainSizePath = data.MustCompilePath("batch_train_size")
 )
 
-// PyMLStateCreator is used by BQL to create or load Multiple Layer Classification
+// StateCreator is used by BQL to create or load Multiple Layer Classification
 // State as a UDS.
-type PyMLStateCreator struct {
+type StateCreator struct {
 }
 
-var _ udf.UDSLoader = &PyMLStateCreator{}
+var _ udf.UDSLoader = &StateCreator{}
 
-// CreateState creates `core.SharedState`
-//
-// * module_path:      Directory path of python module path, default is ''.
-// * module_name:      Python module name, required.
-// * class_name:       Python class name, required.
-// * batch_train_size: Batch size of training. Created state is SharedSink, when
-//                     calling "fit" function, the state send train data as
-//                     array, which length is "batch_train_size". Default is 10.
-func (c *PyMLStateCreator) CreateState(ctx *core.Context, params data.Map) (
+// CreateState creates `core.SharedState`. Some parameters are from pystate
+// package. See the document of pystate.BaseParams for details. pymlstate has
+// its own parameters, which is defined at MLParams.
+func (c *StateCreator) CreateState(ctx *core.Context, params data.Map) (
 	core.SharedState, error) {
 	bp, err := pystate.ExtractBaseParams(params, true)
 	if err != nil {
@@ -56,11 +48,11 @@ func (c *PyMLStateCreator) CreateState(ctx *core.Context, params data.Map) (
 }
 
 // LoadState is same as CREATE STATE.
-func (c *PyMLStateCreator) LoadState(ctx *core.Context, r io.Reader, params data.Map) (
+func (c *StateCreator) LoadState(ctx *core.Context, r io.Reader, params data.Map) (
 	core.SharedState, error) {
-	ss := &PyMLState{}
-	if err := ss.Load(ctx, r, params); err != nil {
+	s := &State{}
+	if err := s.Load(ctx, r, params); err != nil {
 		return nil, err
 	}
-	return ss, nil
+	return s, nil
 }

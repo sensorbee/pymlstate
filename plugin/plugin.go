@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	udf.MustRegisterGlobalUDSCreator("pymlstate", &pymlstate.PyMLStateCreator{})
+	udf.MustRegisterGlobalUDSCreator("pymlstate", &pymlstate.StateCreator{})
 
 	udf.MustRegisterGlobalUDF("pymlstate_fit",
-		udf.MustConvertGeneric(pymlstate.PyMLFit))
+		udf.MustConvertGeneric(pymlstate.Fit))
 	udf.MustRegisterGlobalUDF("pymlstate_predict",
-		udf.MustConvertGeneric(pymlstate.PyMLPredict))
+		udf.MustConvertGeneric(pymlstate.Predict))
 }
