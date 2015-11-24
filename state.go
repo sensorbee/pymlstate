@@ -268,7 +268,17 @@ func (s *State) loadMLParamsAndDataV1(ctx *core.Context, r io.Reader, params dat
 // Fit trains the model. It applies tuples that bucket has in a batch manner.
 // The return value of this function depends on the implementation of Python
 // UDS.
-func Fit(ctx *core.Context, stateName string, bucket []data.Map) (data.Value, error) {
+func Fit(ctx *core.Context, stateName string, bucket data.Array) (data.Value, error) {
+	s, err := lookupState(ctx, stateName)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.Fit(ctx, bucket)
+}
+
+// FitMap trains the model for `data.Map` array. See `Fit` function.
+func FitMap(ctx *core.Context, stateName string, bucket []data.Map) (data.Value, error) {
 	s, err := lookupState(ctx, stateName)
 	if err != nil {
 		return nil, err

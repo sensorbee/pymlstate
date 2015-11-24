@@ -10,6 +10,8 @@ func init() {
 
 	udf.MustRegisterGlobalUDF("pymlstate_fit",
 		udf.MustConvertGeneric(pymlstate.Fit))
+	udf.MustRegisterGlobalUDF("pymlstate_fitmap",
+		udf.MustConvertGeneric(pymlstate.FitMap))
 	udf.MustRegisterGlobalUDF("pymlstate_predict",
 		udf.MustConvertGeneric(pymlstate.Predict))
 }
