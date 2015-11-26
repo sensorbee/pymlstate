@@ -23,7 +23,7 @@ var (
 type State struct {
 	base   *pystate.Base
 	params MLParams
-	bucket data.Array
+	bucket []data.Value
 	rwm    sync.RWMutex
 }
 
@@ -47,7 +47,7 @@ func New(baseParams *pystate.BaseParams, mlParams *MLParams, params data.Map) (*
 	s := &State{
 		base:   b,
 		params: *mlParams,
-		bucket: make(data.Array, 0, mlParams.BatchSize),
+		bucket: make([]data.Value, 0, mlParams.BatchSize),
 	}
 	return s, nil
 }
@@ -121,7 +121,7 @@ func (s *State) Write(ctx *core.Context, t *core.Tuple) error {
 
 // Fit receives `data.Array` type but it assumes `[]data.Map` type
 // for passing arguments to `fit` method.
-func (s *State) Fit(ctx *core.Context, bucket data.Array, args ...data.Value) (
+func (s *State) Fit(ctx *core.Context, bucket []data.Value, args ...data.Value) (
 	data.Value, error) {
 	s.rwm.RLock()
 	defer s.rwm.RUnlock()
@@ -133,27 +133,14 @@ func (s *State) Fit(ctx *core.Context, bucket data.Array, args ...data.Value) (
 // this method itself doesn't change any field of State. Although the model
 // will be updated by the data, the model is protected by Python's GIL. So,
 // this method doesn't require a write lock.
-func (s *State) fit(ctx *core.Context, bucket data.Array, args ...data.Value) (
+func (s *State) fit(ctx *core.Context, bucket []data.Value, args ...data.Value) (
 	data.Value, error) {
-	aggArg := make(data.Array, 1+len(args))
-	aggArg[0] = bucket
+	aggArg := make([]data.Value, 1+len(args))
+	aggArg[0] = data.Array(bucket)
 	for i, v := range args {
 		aggArg[i+1] = v
 	}
 	return s.base.Call("fit", aggArg...)
-}
-
-// FitMap receives `[]data.Map`, these maps are converted to `data.Array`
-func (s *State) FitMap(ctx *core.Context, bucket []data.Map, args ...data.Value) (
-	data.Value, error) {
-	bulkData := make(data.Array, len(bucket))
-	for i, v := range bucket {
-		bulkData[i] = v
-	}
-
-	s.rwm.RLock()
-	defer s.rwm.RUnlock()
-	return s.fit(ctx, bulkData, args...)
 }
 
 // Predict applies the model to the data. It returns a result returned from
@@ -276,7 +263,7 @@ func (s *State) loadMLParamsAndDataV1(ctx *core.Context, r io.Reader, params dat
 // Fit trains the model. It applies tuples that bucket has in a batch manner.
 // The return value of this function depends on the implementation of Python
 // UDS.
-func Fit(ctx *core.Context, stateName string, bucket data.Array, args ...data.Value) (
+func Fit(ctx *core.Context, stateName string, bucket []data.Value, args ...data.Value) (
 	data.Value, error) {
 	s, err := lookupState(ctx, stateName)
 	if err != nil {
@@ -284,17 +271,6 @@ func Fit(ctx *core.Context, stateName string, bucket data.Array, args ...data.Va
 	}
 
 	return s.Fit(ctx, bucket, args...)
-}
-
-// FitMap trains the model for `data.Map` array. See `Fit` function.
-func FitMap(ctx *core.Context, stateName string, bucket []data.Map, args ...data.Value) (
-	data.Value, error) {
-	s, err := lookupState(ctx, stateName)
-	if err != nil {
-		return nil, err
-	}
-
-	return s.FitMap(ctx, bucket, args...)
 }
 
 // Predict applies the model to the given data and returns estimated values.
