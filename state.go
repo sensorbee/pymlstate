@@ -145,10 +145,16 @@ func (s *State) fit(ctx *core.Context, bucket []data.Value, args ...data.Value) 
 
 // Predict applies the model to the data. It returns a result returned from
 // Python script.
-func (s *State) Predict(ctx *core.Context, dt data.Value) (data.Value, error) {
+func (s *State) Predict(ctx *core.Context, dt data.Value, args ...data.Value) (
+	data.Value, error) {
 	s.rwm.RLock()
 	defer s.rwm.RUnlock()
-	return s.base.Call("predict", dt)
+	aggArg := make([]data.Value, 1+len(args))
+	aggArg[0] = dt
+	for i, v := range args {
+		aggArg[i+1] = v
+	}
+	return s.base.Call("predict", aggArg...)
 }
 
 // Save saves the model of the state. pystate calls `save` method and
@@ -275,13 +281,14 @@ func Fit(ctx *core.Context, stateName string, bucket []data.Value, args ...data.
 
 // Predict applies the model to the given data and returns estimated values.
 // The format of the return value depends on each Python UDS.
-func Predict(ctx *core.Context, stateName string, dt data.Value) (data.Value, error) {
+func Predict(ctx *core.Context, stateName string, dt data.Value, args ...data.Value) (
+	data.Value, error) {
 	s, err := lookupState(ctx, stateName)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.Predict(ctx, dt)
+	return s.Predict(ctx, dt, args...)
 }
 
 func lookupState(ctx *core.Context, stateName string) (*State, error) {
