@@ -121,11 +121,10 @@ func (s *State) Write(ctx *core.Context, t *core.Tuple) error {
 
 // Fit receives `data.Array` type but it assumes `[]data.Map` type
 // for passing arguments to `fit` method.
-func (s *State) Fit(ctx *core.Context, bucket []data.Value, args ...data.Value) (
-	data.Value, error) {
+func (s *State) Fit(ctx *core.Context, bucket []data.Value) (data.Value, error) {
 	s.rwm.RLock()
 	defer s.rwm.RUnlock()
-	return s.fit(ctx, bucket, args...)
+	return s.fit(ctx, bucket)
 }
 
 // fit is the internal implementation of Fit. fit doesn't acquire the lock nor
@@ -133,28 +132,16 @@ func (s *State) Fit(ctx *core.Context, bucket []data.Value, args ...data.Value) 
 // this method itself doesn't change any field of State. Although the model
 // will be updated by the data, the model is protected by Python's GIL. So,
 // this method doesn't require a write lock.
-func (s *State) fit(ctx *core.Context, bucket []data.Value, args ...data.Value) (
-	data.Value, error) {
-	aggArg := make([]data.Value, 1+len(args))
-	aggArg[0] = data.Array(bucket)
-	for i, v := range args {
-		aggArg[i+1] = v
-	}
-	return s.base.Call("fit", aggArg...)
+func (s *State) fit(ctx *core.Context, bucket []data.Value) (data.Value, error) {
+	return s.base.Call("fit", data.Array(bucket))
 }
 
 // Predict applies the model to the data. It returns a result returned from
 // Python script.
-func (s *State) Predict(ctx *core.Context, dt data.Value, args ...data.Value) (
-	data.Value, error) {
+func (s *State) Predict(ctx *core.Context, dt data.Value) (data.Value, error) {
 	s.rwm.RLock()
 	defer s.rwm.RUnlock()
-	aggArg := make([]data.Value, 1+len(args))
-	aggArg[0] = dt
-	for i, v := range args {
-		aggArg[i+1] = v
-	}
-	return s.base.Call("predict", aggArg...)
+	return s.base.Call("predict", dt)
 }
 
 // Save saves the model of the state. pystate calls `save` method and
@@ -269,26 +256,24 @@ func (s *State) loadMLParamsAndDataV1(ctx *core.Context, r io.Reader, params dat
 // Fit trains the model. It applies tuples that bucket has in a batch manner.
 // The return value of this function depends on the implementation of Python
 // UDS.
-func Fit(ctx *core.Context, stateName string, bucket []data.Value, args ...data.Value) (
-	data.Value, error) {
+func Fit(ctx *core.Context, stateName string, bucket []data.Value) (data.Value, error) {
 	s, err := lookupState(ctx, stateName)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.Fit(ctx, bucket, args...)
+	return s.Fit(ctx, bucket)
 }
 
 // Predict applies the model to the given data and returns estimated values.
 // The format of the return value depends on each Python UDS.
-func Predict(ctx *core.Context, stateName string, dt data.Value, args ...data.Value) (
-	data.Value, error) {
+func Predict(ctx *core.Context, stateName string, dt data.Value) (data.Value, error) {
 	s, err := lookupState(ctx, stateName)
 	if err != nil {
 		return nil, err
 	}
 
-	return s.Predict(ctx, dt, args...)
+	return s.Predict(ctx, dt)
 }
 
 func lookupState(ctx *core.Context, stateName string) (*State, error) {
