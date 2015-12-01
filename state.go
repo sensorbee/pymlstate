@@ -204,7 +204,10 @@ func (s *State) Load(ctx *core.Context, r io.Reader, params data.Map) error {
 	if err := s.base.CheckTermination(); err != nil {
 		return err
 	}
+	return s.load(ctx, r, params)
+}
 
+func (s *State) load(ctx *core.Context, r io.Reader, params data.Map) error {
 	var formatVersion uint8
 	if err := binary.Read(r, binary.LittleEndian, &formatVersion); err != nil {
 		return err
@@ -246,8 +249,17 @@ func (s *State) loadMLParamsAndDataV1(ctx *core.Context, r io.Reader, params dat
 	if err := dec.Decode(&saved); err != nil {
 		return err
 	}
-	if err := s.base.Load(ctx, r, params); err != nil {
-		return err
+
+	if s.base == nil { // loading for the first time
+		s.base, err = pystate.LoadBase(ctx, r, params)
+		if err != nil {
+			return err
+		}
+
+	} else {
+		if err := s.base.Load(ctx, r, params); err != nil {
+			return err
+		}
 	}
 	s.params = saved
 	return nil
