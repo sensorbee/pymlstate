@@ -51,7 +51,7 @@ func (c *StateCreator) CreateState(ctx *core.Context, params data.Map) (
 func (c *StateCreator) LoadState(ctx *core.Context, r io.Reader, params data.Map) (
 	core.SharedState, error) {
 	s := &State{}
-	if err := s.Load(ctx, r, params); err != nil {
+	if err := s.load(ctx, r, params); err != nil {
 		return nil, err
 	}
 	return s, nil
