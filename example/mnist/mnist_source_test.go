@@ -19,8 +19,8 @@ func TestRondomPermutation(t *testing.T) {
 			perm[i] = i
 		}
 		Convey("When a permutation is randomized", func() {
-			ramdomPermutaion(perm)
-			Convey("Then the permutation should be randomized", func() {
+			randomPermutation(perm)
+			Convey("Then the permutation should be randomized (rarely correspond together, 1/9.33e157 will happen)", func() {
 				So(perm, ShouldNotResemble, org)
 			})
 		})

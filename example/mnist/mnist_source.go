@@ -184,7 +184,7 @@ func (s *mnistDataSource) GenerateStream(ctx *core.Context, w core.Writer) error
 	}
 
 	if s.randomFlag {
-		ramdomPermutaion(perm)
+		randomPermutation(perm)
 		for i, p := range perm {
 			label[i] = s.target[p]
 			for j, d := range s.data[p] {
@@ -245,7 +245,7 @@ func (s *dataSource) reader() (*bufio.Reader, io.Closer, error) {
 	return r, f, nil
 }
 
-func ramdomPermutaion(perm []int) {
+func randomPermutation(perm []int) {
 	for i := range perm {
 		j := rand.Intn(i + 1)
 		perm[i], perm[j] = perm[j], perm[i]
