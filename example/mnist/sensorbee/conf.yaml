@@ -1,0 +1,13 @@
+network:
+  listen_on: ':8090'
+topologies:
+  mnist_predict:
+    bql_file: 'predict.bql'
+logging:
+  log_dropped_tuples:       true
+  summarize_dropped_tuples: true
+storage:
+  uds:
+    type: "fs"
+    params:
+      dir: "uds"
