@@ -8,20 +8,22 @@ CREATE PAUSED SOURCE mnist_test_data TYPE mnist_source
 ;
 
 -- load traned data
-CREATE STATE ml_mnist_trained TYPE pymlstate
+CREATE STATE ml_mnist TYPE pymlstate
     WITH module_path='../',
          module_name='mnist', -- mnist.py
          class_name='MNIST',
-         model_file_path='uds/mnist_model.pkl' -- saved model file path
+         batch_train_size=100
+;
+LOAD STATE ml_mnist TYPE pymlstate
 ;
 
 CREATE STREAM ml_mnist_eval AS SELECT RSTREAM
-    pymlstate_predict('ml_mnist_trained', me:data) AS pred,
+    pymlstate_predict('ml_mnist', me:data) AS pred,
     me:label AS label
     FROM mnist_test_data [RANGE 1 TUPLES] AS me
 ;
 
--- logging accuracy
+-- logging accuracy, execute the query in other shell
 -- SELECT RSTREAM count(me:pred) / 10000.0
 --     FROM ml_mnist_eval [RANGE 10000 TUPLES] AS me
 --     WHERE me:pred = me:label

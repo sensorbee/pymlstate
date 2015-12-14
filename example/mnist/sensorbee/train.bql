@@ -1,0 +1,27 @@
+-- create training data source
+CREATE PAUSED SOURCE mnist_data TYPE mnist_source
+    WITH images_file_name='data/train-images-idx3-ubyte',
+         labels_file_name='data/train-labels-idx1-ubyte',
+         data_size=60000,
+         image_element_size=784, -- optional
+         rondom=true -- optional
+;
+
+-- create multiple cassification state
+CREATE STATE ml_mnist TYPE pymlstate
+    WITH module_path='../',
+         module_name='mnist', -- mnist.py
+         class_name='MNIST',
+         batch_train_size=100
+;
+CREATE SINK ml_mnist_trainer TYPE uds
+    WITH name='ml_mnist'
+;
+-- training (using shared sink)
+INSERT INTO ml_mnist_trainer SELECT RSTREAM
+    *
+    FROM mnist_data [RANGE 1 TUPLES]
+;
+
+-- call RESUME in other shell
+-- RESUME SOURCE mnist_data;

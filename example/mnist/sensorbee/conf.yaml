@@ -1,7 +1,7 @@
 network:
   listen_on: ':8090'
 topologies:
-  mnist_predict:
+  mnist:
     bql_file: 'predict.bql'
 logging:
   log_dropped_tuples:       true
