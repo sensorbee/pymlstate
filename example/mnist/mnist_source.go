@@ -29,6 +29,7 @@ var (
 	dataSizePath       = data.MustCompilePath("data_size")
 	imageElemSizePath  = data.MustCompilePath("image_element_size")
 	randomFlagPath     = data.MustCompilePath("random")
+	rewindPath         = data.MustCompilePath("rewind")
 )
 
 // CreateSource returns a source which generate MNIST data stream. The MNIST
@@ -51,7 +52,17 @@ func (s *DataSourceCreator) CreateSource(ctx *core.Context, ioParams *bql.IOPara
 		return nil, err
 	}
 
-	return core.NewRewindableSource(ms), nil
+	rewind := false
+	if rf, err := params.Get(rewindPath); err == nil {
+		if rewind, err = data.AsBool(rf); err != nil {
+			return nil, err
+		}
+	}
+
+	if rewind {
+		return core.NewRewindableSource(ms), nil
+	}
+	return ms, nil
 }
 
 func createMNISTDataSource(ctx *core.Context, ioParams *bql.IOParams,
