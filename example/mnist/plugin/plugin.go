@@ -13,4 +13,7 @@ func init() {
 		udf.UDSCreatorFunc(mnist.NewBucketState))
 	udf.MustRegisterGlobalUDSFCreator("mnist_batch",
 		udf.MustConvertToUDSFCreator(mnist.CreateBucketStoreUDSF))
+
+	udf.MustRegisterGlobalUDSFCreator("mnist_epoch",
+		udf.MustConvertToUDSFCreator(mnist.CreateEpochUDSF))
 }
