@@ -234,7 +234,8 @@ func (s *mnistDataSource) GenerateStream(ctx *core.Context, w core.Writer) error
 		}
 	}
 
-	ctx.Log().Info("all MNIST data has been streaming")
+	ctx.Log().WithField("source_type", "mnist_source").Info(
+		"All tuples have been emitted")
 	return nil
 }
 
