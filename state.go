@@ -13,6 +13,7 @@ import (
 )
 
 var (
+	datPath  = data.MustCompilePath("data")
 	lossPath = data.MustCompilePath("loss")
 	accPath  = data.MustCompilePath("accuracy")
 )
@@ -73,9 +74,25 @@ func (s *State) Write(ctx *core.Context, t *core.Tuple) error {
 		return err
 	}
 
-	s.bucket = append(s.bucket, t.Data)
-	if len(s.bucket) < s.params.BatchSize {
-		return nil
+	dataSet, err := t.Data.Get(datPath)
+	if err != nil {
+		return err
+	}
+
+	dataSize := s.params.BatchSize
+	if s.params.BatchSize > 1 {
+		s.bucket = append(s.bucket, dataSet)
+		if len(s.bucket) < s.params.BatchSize {
+			return nil
+		}
+	} else {
+		if dataSet.Type() == data.TypeArray {
+			arr, _ := data.AsArray(dataSet)
+			s.bucket = arr
+			dataSize = len(arr)
+		} else {
+			s.bucket = []data.Value{dataSet}
+		}
 	}
 
 	m, err := s.fit(ctx, s.bucket)
@@ -107,8 +124,8 @@ func (s *State) Write(ctx *core.Context, t *core.Tuple) error {
 	if err != nil {
 		return nil
 	}
-	ctx.Log().Infof("loss=%.3f acc=%.3f", loss/float64(s.params.BatchSize),
-		acc/float64(s.params.BatchSize))
+	ctx.Log().Debugf("loss=%.3f acc=%.3f", loss/float64(dataSize),
+		acc/float64(dataSize))
 	return nil
 }
 
