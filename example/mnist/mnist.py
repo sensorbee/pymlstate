@@ -1,40 +1,37 @@
 #!/usr/bin/env python
 """Chainer example: train a multi-layer perceptron on MNIST
 
-This is a minimal example to write a feed-forward net. It requires scikit-learn
-to load MNIST dataset.
+This is a minimal example to write a feed-forward net.
 
 """
 import numpy as np
-
+import chainer
+from chainer import cuda
+from chainer import optimizers
+import chainer.links as L
 import six
 
-import chainer
-from chainer import cuda, FunctionSet
-import chainer.functions as F
-from chainer import optimizers
+import net  # from chaner MNIST example
 
 
 class MNIST(object):
 
     @staticmethod
-    def create(*args, **kwargs):
+    def create(n_in=784, n_units=1000, n_out=10, gpu=-1):
         self = MNIST()
-        if 'model_file_path' in kwargs:
-            with open(kwargs['model_file_path']) as model_pickle:
-                self.model = six.moves.cPickle.load(model_pickle)
-        else:
-            n_units = 1000
-            self.model = FunctionSet(
-                l1=F.Linear(784, n_units),
-                l2=F.Linear(n_units, n_units),
-                l3=F.Linear(n_units, 10))
-        if 'gpu' in kwargs:
-            self.gpu = kwargs['gpu']
-        else:
-            self.gpu = -1
 
-        self.prepare_gpu_and_optimizer()
+        model = L.Classifier(net.MnistMLP(n_in, n_units, n_out))
+        if gpu >= 0:
+            cuda.get_device(gpu).use()
+            model.to_gpu()
+        self.model = model
+
+        self.xp = np if gpu < 0 else cuda.cupy
+
+        optimizer = optimizers.Adam()
+        optimizer.setup(model)
+        self.optimizer = optimizer
+
         return self
 
     @staticmethod
@@ -42,74 +39,38 @@ class MNIST(object):
         with open(filepath, 'r') as f:
             return six.moves.cPickle.load(f)
 
-    def prepare_gpu_and_optimizer(self):
-        if self.gpu >= 0:
-            cuda.init(self.gpu)
-            self.model.to_gpu()
-
-        # Setup optimizer
-        self.optimizer = optimizers.Adam()
-        self.optimizer.setup(self.model.collect_parameters())
-
-    def forward(self, x_data, train=True):
-        x = chainer.Variable(x_data)
-        h1 = F.dropout(F.relu(self.model.l1(x)),  train=train)
-        h2 = F.dropout(F.relu(self.model.l2(h1)), train=train)
-        return self.model.l3(h2)
-
     def fit(self, xys):
-        x = []
-        y = []
+        x_train = []
+        y_train = []
         for d in xys:
-            x.append(d['data'])
-            y.append(d['label'])
-        x_batch = np.array(x, dtype=np.float32)
-        y_batch = np.array(y, dtype=np.int32)
+            x_train.append(d['data'])
+            y_train.append(d['label'])
 
-        if self.gpu >= 0:
-            x_batch = cuda.to_gpu(x_batch)
-            y_batch = cuda.to_gpu(y_batch)
+        nx = np.array(x_train, dtype=np.float32)
+        ny = np.array(y_train, dtype=np.int32)
+        x = chainer.Variable(self.xp.asarray(nx))
+        t = chainer.Variable(self.xp.asarray(ny))
 
-        self.optimizer.zero_grads()
-        y = self.forward(x_batch)
+        # Pass the loss function (Classifier defines it) and its arguments
+        self.optimizer.update(self.model, x, t)
 
-        t = chainer.Variable(y_batch)
-        loss = F.softmax_cross_entropy(y, t)
-        acc = F.accuracy(y, t)
+        sum_loss = float(self.model.loss.data) * len(t.data)
+        sum_accuracy = float(self.model.accuracy.data) * len(t.data)
 
-        loss.backward()
-        self.optimizer.update()
-
-        nloss = float(cuda.to_cpu(loss.data)) * len(y_batch)
-        naccuracy = float(cuda.to_cpu(acc.data)) * len(y_batch)
-
-        retmap = {
-            'loss': nloss,
-            'accuracy': naccuracy,
-        }
-
-        return retmap
+        return sum_loss, sum_accuracy
 
     def predict(self, x):
-        # non batch
-        xx = []
-        xx.append(x)
-        x_data = np.array(xx, dtype=np.float32)
-        if self.gpu >= 0:
-            x_data = cuda.to_gpu(x_data)
-
-        y = self.forward(x_data, train=False)
-        y = y.data.reshape(y.data.shape[0], y.data.size / y.data.shape[0])
+        x_test = []
+        x_test.append(x)
+        nx = np.array(x_test, dtype=np.float32)
+        x = chainer.Variable(self.xp.asarray(nx, volatile='on'))
+        loss = self.model(x)
+        y = loss.data.reshape(
+            loss.data.shape[0], loss.data.size / loss.data.shape[0])
         pred = y.argmax(axis=1)
 
         return int(pred[0])
 
-    def get_model(self):
-        return self.model
-
     def save(self, filepath, *args, **kwargs):
         with open(filepath, 'w') as f:
             six.moves.cPickle.dump(self, f)
-
-    def load_model(self, model_data):
-        self.model = six.moves.cPickle.loads(str(model_data))

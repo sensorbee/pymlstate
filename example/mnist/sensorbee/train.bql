@@ -14,9 +14,11 @@ CREATE STATE ml_mnist TYPE pymlstate
          class_name='MNIST',
          batch_train_size=100
 ;
+
 CREATE SINK ml_mnist_trainer TYPE uds
     WITH name='ml_mnist'
 ;
+
 -- training (using shared sink)
 INSERT INTO ml_mnist_trainer SELECT RSTREAM
     *
