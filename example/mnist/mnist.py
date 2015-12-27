@@ -20,12 +20,15 @@ class MNIST(object):
     def create(n_in=784, n_units=1000, n_out=10, gpu=-1):
         self = MNIST()
 
-        model = L.Classifier(net.MnistMLP(n_in, n_units, n_out))
+        mlp = net.MnistMLP(n_in, n_units, n_out)
+        self.mlp = mlp
+        model = L.Classifier(mlp)
         if gpu >= 0:
             cuda.get_device(gpu).use()
             model.to_gpu()
         self.model = model
 
+        self.gpu = gpu
         self.xp = np if gpu < 0 else cuda.cupy
 
         optimizer = optimizers.Adam()
@@ -36,8 +39,15 @@ class MNIST(object):
 
     @staticmethod
     def load(filepath, *args, **kwargs):
+        self = MNIST()
         with open(filepath, 'r') as f:
-            return six.moves.cPickle.load(f)
+            self = six.moves.cPickle.load(f)
+        if self.gpu >= 0:
+            cuda.get_device(self.gpu).use()
+            self.model.to_gpu()
+        self.xp = np if self.gpu < 0 else cuda.cupy
+
+        return self
 
     def fit(self, xys):
         x_train = []
@@ -63,14 +73,16 @@ class MNIST(object):
         x_test = []
         x_test.append(x)
         nx = np.array(x_test, dtype=np.float32)
-        x = chainer.Variable(self.xp.asarray(nx, volatile='on'))
-        loss = self.model(x)
-        y = loss.data.reshape(
-            loss.data.shape[0], loss.data.size / loss.data.shape[0])
-        pred = y.argmax(axis=1)
+        x = chainer.Variable(self.xp.asarray(nx), volatile='on')
+        pred = self.mlp(x)
+        y = pred.data.reshape(
+            pred.data.shape[0], pred.data.size / pred.data.shape[0])
+        pred_y = y.argmax(axis=1)
 
-        return int(pred[0])
+        return int(pred_y[0])
 
     def save(self, filepath, *args, **kwargs):
+        self.xp = None
+        self.model.to_cpu()
         with open(filepath, 'w') as f:
             six.moves.cPickle.dump(self, f)
