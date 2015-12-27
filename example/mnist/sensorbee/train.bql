@@ -1,10 +1,27 @@
 -- create training data source
+-- streaming: {'data': <image>, 'label': <label>}
 CREATE PAUSED SOURCE mnist_data TYPE mnist_source
     WITH images_file_name='data/train-images-idx3-ubyte',
          labels_file_name='data/train-labels-idx1-ubyte',
          data_size=60000,
-         image_element_size=784, -- optional
-         rondom=true -- optional
+         image_element_size=784 -- optional
+;
+
+-- create bucket for batch streaming
+CREATE STATE data_bucket TYPE mnist_bucket
+    WITH bucket_size=60000
+;
+
+CREATE STREAM mnist_data_batch AS SELECT RSTREAM
+    mb:bucket AS data
+    FROM mnist_batch('mnist_data', 'data_bucket')
+    [RANGE 1 TUPLES] AS mb
+;
+
+CREATE STREAM mnist_data_epoch AS SELECT RSTREAM
+    md:data
+    FROM mnist_epoch('mnist_data_batch', 'data', 100, 20, true)
+    [RANGE 1 TUPLES] as md
 ;
 
 -- create multiple cassification state
@@ -12,7 +29,7 @@ CREATE STATE ml_mnist TYPE pymlstate
     WITH module_path='../',
          module_name='mnist', -- mnist.py
          class_name='MNIST',
-         batch_train_size=100
+         batch_train_size=1
 ;
 
 CREATE SINK ml_mnist_trainer TYPE uds
@@ -21,9 +38,6 @@ CREATE SINK ml_mnist_trainer TYPE uds
 
 -- training (using shared sink)
 INSERT INTO ml_mnist_trainer SELECT RSTREAM
-    *
-    FROM mnist_data [RANGE 1 TUPLES]
+    mdb:data AS data
+    FROM mnist_data_epoch [RANGE 1 TUPLES] AS mdb
 ;
-
--- call RESUME in other shell
--- RESUME SOURCE mnist_data;

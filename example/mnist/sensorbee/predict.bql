@@ -3,17 +3,10 @@ CREATE PAUSED SOURCE mnist_test_data TYPE mnist_source
     WITH images_file_name='data/t10k-images-idx3-ubyte',
          labels_file_name='data/t10k-labels-idx1-ubyte',
          data_size=10000,
-         image_element_size=784, -- optional
-         rondom=false
+         image_element_size=784  -- optional
 ;
 
 -- load traned data
-CREATE STATE ml_mnist TYPE pymlstate
-    WITH module_path='../',
-         module_name='mnist', -- mnist.py
-         class_name='MNIST',
-         batch_train_size=100
-;
 LOAD STATE ml_mnist TYPE pymlstate
 ;
 
@@ -24,10 +17,7 @@ CREATE STREAM ml_mnist_eval AS SELECT RSTREAM
 ;
 
 -- logging accuracy, execute the query in other shell
--- SELECT RSTREAM count(me:pred) / 10000.0
---     FROM ml_mnist_eval [RANGE 10000 TUPLES] AS me
---     WHERE me:pred = me:label
--- ;
+-- SELECT RSTREAM count(me:pred) / 10000.0 AS acc FROM ml_mnist_eval [RANGE 10000 TUPLES] AS me WHERE me:pred = me:label;
 
--- call RESUME in other shell
+-- resume in other shell
 -- RESUME SOURCE mnist_test_data;
