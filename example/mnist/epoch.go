@@ -115,7 +115,7 @@ func (sf *epochUDSF) Process(ctx *core.Context, t *core.Tuple,
 			}
 			w.Write(ctx, tu)
 		}
-		ctx.Log().Infof("%d epoch is done", i+1)
+		ctx.Log().Infof("epoch:%d has been emitted", i+1)
 	}
 
 	return nil
