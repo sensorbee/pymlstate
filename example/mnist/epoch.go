@@ -34,8 +34,12 @@ func CreateEpochUDSF(ctx *core.Context, decl udf.UDSFDeclarer, stream,
 		return nil, fmt.Errorf("epoch size must be more than zero")
 	}
 
+	arrayKeyPath, err := data.CompilePath(arrayKey)
+	if err != nil {
+		return nil, err
+	}
 	return &epochUDSF{
-		arrayKeyPath: data.MustCompilePath(arrayKey),
+		arrayKeyPath: arrayKeyPath,
 		batchSize:    batchSize,
 		epoch:        epoch,
 		random:       random,
