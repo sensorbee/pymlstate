@@ -11,7 +11,7 @@ from chainer import optimizers
 import chainer.links as L
 import six
 
-import net  # from chaner MNIST example
+import net  # from chainer MNIST example
 
 
 class MNIST(object):
