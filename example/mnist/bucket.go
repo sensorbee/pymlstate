@@ -38,7 +38,7 @@ type dataBucket struct {
 
 	pool   data.Array
 	bucket data.Array
-	rwm    sync.RWMutex
+	mu     sync.Mutex
 }
 
 func (b *dataBucket) store(dt data.Value) bool {
@@ -88,8 +88,8 @@ func (sf *bucketStoreUDSF) Process(ctx *core.Context, t *core.Tuple,
 		return err
 	}
 
-	b.rwm.Lock()
-	defer b.rwm.Unlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
 	if !b.store(t.Data) {
 		return nil
