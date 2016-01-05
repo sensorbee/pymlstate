@@ -36,9 +36,8 @@ func NewBucketState(ctx *core.Context, params data.Map) (core.SharedState, error
 type dataBucket struct {
 	bucketSize int
 
-	pool   data.Array
-	bucket data.Array
-	mu     sync.Mutex
+	pool data.Array
+	mu   sync.Mutex
 }
 
 func (b *dataBucket) store(dt data.Value) bool {
@@ -46,13 +45,14 @@ func (b *dataBucket) store(dt data.Value) bool {
 	if len(b.pool) < b.bucketSize {
 		return false
 	}
-	b.bucket = b.pool
-	b.pool = b.pool[:0] // clear slice but keep capacity
 	return true
 }
 
 func (b *dataBucket) stream() data.Array {
-	return b.bucket
+	temp := make(data.Array, b.bucketSize, b.bucketSize)
+	copy(temp, b.pool)
+	b.pool = b.pool[:0] // clear slice but keep capacity
+	return temp
 }
 
 func (b *dataBucket) Terminate(ctx *core.Context) error {
