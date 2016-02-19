@@ -1,0 +1,4 @@
+-- load traned data
+LOAD STATE ml_mnist TYPE pymlstate
+    SET gpu=-1
+;

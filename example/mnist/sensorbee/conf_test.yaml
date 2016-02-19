@@ -2,7 +2,7 @@ network:
   listen_on: ':8090'
 topologies:
   mnist:
-    bql_file: 'load_model.bql'
+    bql_file: 'test.bql'
 logging:
   log_dropped_tuples:       true
   summarize_dropped_tuples: true

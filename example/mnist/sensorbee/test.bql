@@ -8,6 +8,7 @@ CREATE PAUSED SOURCE mnist_test_data TYPE mnist_source
 
 -- load traned data
 LOAD STATE ml_mnist TYPE pymlstate
+    SET gpu=-1
 ;
 
 CREATE STREAM ml_mnist_eval AS SELECT RSTREAM
