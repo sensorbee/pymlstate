@@ -1,115 +1,110 @@
 #!/usr/bin/env python
 """Chainer example: train a multi-layer perceptron on MNIST
 
-This is a minimal example to write a feed-forward net. It requires scikit-learn
-to load MNIST dataset.
+This is a minimal example to write a feed-forward net.
 
 """
 import numpy as np
-
-import six
-
 import chainer
-from chainer import cuda, FunctionSet
-import chainer.functions as F
+from chainer import cuda
 from chainer import optimizers
+from chainer import serializers
+import chainer.functions as F
+import chainer.links as L
 
 
 class MNIST(object):
 
     @staticmethod
-    def create(*args, **kwargs):
+    def create(n_in=784, n_units=1000, n_out=10, gpu=-1):
         self = MNIST()
-        if 'model_file_path' in kwargs:
-            with open(kwargs['model_file_path']) as model_pickle:
-                self.model = six.moves.cPickle.load(model_pickle)
-        else:
-            n_units = 1000
-            self.model = FunctionSet(
-                l1=F.Linear(784, n_units),
-                l2=F.Linear(n_units, n_units),
-                l3=F.Linear(n_units, 10))
-        if 'gpu' in kwargs:
-            self.gpu = kwargs['gpu']
-        else:
-            self.gpu = -1
 
-        self.prepare_gpu_and_optimizer()
+        model = L.Classifier(MnistMLP(n_in, n_units, n_out))
+        if gpu >= 0:
+            cuda.get_device(gpu).use()
+            model.to_gpu()
+        self.model = model
+
+        self.gpu = gpu
+        self.xp = np if gpu < 0 else cuda.cupy
+
+        optimizer = optimizers.Adam()
+        optimizer.setup(model)
+        self.optimizer = optimizer
+
         return self
 
     @staticmethod
-    def load(filepath, *args, **kwargs):
-        with open(filepath, 'r') as f:
-            return six.moves.cPickle.load(f)
+    def load(filepath, n_in=784, n_units=1000, n_out=10, gpu=-1):
+        self = MNIST()
+        # TODO should not depend on function parameter,
+        # model parameter should load from serialized data
+        model = L.Classifier(MnistMLP(n_in, n_units, n_out))
+        serializers.load_npz(filepath, model)
+        if gpu >= 0:
+            cuda.get_device(gpu).use()
+            model.to_gpu()
+        self.model = model
 
-    def prepare_gpu_and_optimizer(self):
-        if self.gpu >= 0:
-            cuda.init(self.gpu)
-            self.model.to_gpu()
+        # To resume learning models, need to save/load optimizer.
 
-        # Setup optimizer
-        self.optimizer = optimizers.Adam()
-        self.optimizer.setup(self.model.collect_parameters())
+        self.gpu = gpu
+        self.xp = np if self.gpu < 0 else cuda.cupy
 
-    def forward(self, x_data, train=True):
-        x = chainer.Variable(x_data)
-        h1 = F.dropout(F.relu(self.model.l1(x)),  train=train)
-        h2 = F.dropout(F.relu(self.model.l2(h1)), train=train)
-        return self.model.l3(h2)
+        return self
 
     def fit(self, xys):
-        x = []
-        y = []
+        x_train = []
+        y_train = []
         for d in xys:
-            x.append(d['data'])
-            y.append(d['label'])
-        x_batch = np.array(x, dtype=np.float32)
-        y_batch = np.array(y, dtype=np.int32)
+            x_train.append(d['data'])
+            y_train.append(d['label'])
 
-        if self.gpu >= 0:
-            x_batch = cuda.to_gpu(x_batch)
-            y_batch = cuda.to_gpu(y_batch)
+        nx = np.array(x_train, dtype=np.float32)
+        ny = np.array(y_train, dtype=np.int32)
+        x = chainer.Variable(self.xp.asarray(nx))
+        t = chainer.Variable(self.xp.asarray(ny))
 
-        self.optimizer.zero_grads()
-        y = self.forward(x_batch)
+        # Pass the loss function (Classifier defines it) and its arguments
+        self.optimizer.update(self.model, x, t)
 
-        t = chainer.Variable(y_batch)
-        loss = F.softmax_cross_entropy(y, t)
-        acc = F.accuracy(y, t)
+        sum_loss = float(self.model.loss.data) * len(t.data)
+        sum_accuracy = float(self.model.accuracy.data) * len(t.data)
 
-        loss.backward()
-        self.optimizer.update()
-
-        nloss = float(cuda.to_cpu(loss.data)) * len(y_batch)
-        naccuracy = float(cuda.to_cpu(acc.data)) * len(y_batch)
-
-        retmap = {
-            'loss': nloss,
-            'accuracy': naccuracy,
-        }
-
-        return retmap
+        return sum_loss, sum_accuracy
 
     def predict(self, x):
-        # non batch
-        xx = []
-        xx.append(x)
-        x_data = np.array(xx, dtype=np.float32)
-        if self.gpu >= 0:
-            x_data = cuda.to_gpu(x_data)
-
-        y = self.forward(x_data, train=False)
-        y = y.data.reshape(y.data.shape[0], y.data.size / y.data.shape[0])
+        x_test = []
+        x_test.append(x)
+        nx = np.array(x_test, dtype=np.float32)
+        xx = chainer.Variable(self.xp.asarray(nx))
+        y = self.model.predictor(xx).data
+        y = y.reshape(len(y), -1)  # flatten
         pred = y.argmax(axis=1)
 
         return int(pred[0])
 
-    def get_model(self):
-        return self.model
-
     def save(self, filepath, *args, **kwargs):
-        with open(filepath, 'w') as f:
-            six.moves.cPickle.dump(self, f)
+        serializers.save_npz(filepath, self.model)
 
-    def load_model(self, model_data):
-        self.model = six.moves.cPickle.loads(str(model_data))
+
+# from chainer/example/mnist/net.py
+class MnistMLP(chainer.Chain):
+
+    """An example of multi-layer perceptron for MNIST dataset.
+
+    This is a very simple implementation of an MLP. You can modify this code to
+    build your own neural net.
+
+    """
+    def __init__(self, n_in, n_units, n_out):
+        super(MnistMLP, self).__init__(
+            l1=L.Linear(n_in, n_units),
+            l2=L.Linear(n_units, n_units),
+            l3=L.Linear(n_units, n_out),
+        )
+
+    def __call__(self, x):
+        h1 = F.relu(self.l1(x))
+        h2 = F.relu(self.l2(h1))
+        return self.l3(h2)

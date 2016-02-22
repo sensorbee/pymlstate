@@ -1,0 +1,5 @@
+--- # SensorBee plug-in list
+plugins:
+- pfi/sensorbee/py/pystate/plugin
+- pfi/sensorbee/pymlstate/plugin
+- pfi/sensorbee/pymlstate/example/mnist/plugin

@@ -1,0 +1,34 @@
+-- create test data sxource
+CREATE PAUSED SOURCE mnist_test_data TYPE mnist_source
+    WITH images_file_name='data/t10k-images-idx3-ubyte',
+         labels_file_name='data/t10k-labels-idx1-ubyte',
+         data_size=10000,
+         image_element_size=784  -- optional
+;
+
+-- load traned data
+LOAD STATE ml_mnist TYPE pymlstate
+    SET gpu=-1
+;
+
+CREATE STREAM ml_mnist_eval AS SELECT RSTREAM
+    pymlstate_predict('ml_mnist', me:data) AS pred,
+    me:label AS label
+    FROM mnist_test_data [RANGE 1 TUPLES] AS me
+;
+
+-- logging accuracy, execute the query in other shell
+CREATE STREAM ml_mnist_acc AS SELECT RSTREAM
+    count(me:pred) / 10000.0 AS acc
+    FROM ml_mnist_eval [RANGE 10000 TUPLES] AS me
+    WHERE me:pred = me:label
+;
+
+CREATE SINK ml_mnist_acc_log TYPE file
+    WITH path='data/acc_log.jsonl',
+         truncate=true
+;
+
+-- eval test data
+INSERT INTO ml_mnist_acc_log FROM ml_mnist_acc
+;

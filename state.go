@@ -13,6 +13,7 @@ import (
 )
 
 var (
+	datPath  = data.MustCompilePath("data")
 	lossPath = data.MustCompilePath("loss")
 	accPath  = data.MustCompilePath("accuracy")
 )
@@ -73,9 +74,25 @@ func (s *State) Write(ctx *core.Context, t *core.Tuple) error {
 		return err
 	}
 
-	s.bucket = append(s.bucket, t.Data)
-	if len(s.bucket) < s.params.BatchSize {
-		return nil
+	dataSet, err := t.Data.Get(datPath)
+	if err != nil {
+		return err
+	}
+
+	dataSize := s.params.BatchSize
+	if s.params.BatchSize > 1 {
+		s.bucket = append(s.bucket, dataSet)
+		if len(s.bucket) < s.params.BatchSize {
+			return nil
+		}
+	} else {
+		if dataSet.Type() == data.TypeArray {
+			arr, _ := data.AsArray(dataSet)
+			s.bucket = arr
+			dataSize = len(arr)
+		} else {
+			s.bucket = []data.Value{dataSet}
+		}
 	}
 
 	m, err := s.fit(ctx, s.bucket)
@@ -89,33 +106,26 @@ func (s *State) Write(ctx *core.Context, t *core.Tuple) error {
 
 	// TODO: add option to toggle the following logging
 
-	ret, err := data.AsMap(m)
-	if err != nil {
+	ret, err := data.AsArray(m)
+	if err != nil || len(ret) != 2 {
 		// The following log is optional. So, it isn't a error even if the
 		// result doesn't have accuracy and loss fields.
 		// TODO: write a warning log after the logging option is added.
 		return nil
 	}
 
-	var loss float64
-	if l, e := ret.Get(lossPath); e != nil {
-		// TODO: add warning
-		return nil
-	} else if loss, e = data.ToFloat(l); e != nil {
+	loss, err := data.ToFloat(ret[0])
+	if err != nil {
 		// TODO: add warning
 		return nil
 	}
 
-	var acc float64
-	if a, e := ret.Get(accPath); e != nil {
-		// TODO: add warning
-		return nil
-	} else if acc, e = data.ToFloat(a); e != nil {
-		// TODO: add warning
+	acc, err := data.ToFloat(ret[1])
+	if err != nil {
 		return nil
 	}
-	ctx.Log().Debugf("loss=%.3f acc=%.3f", loss/float64(s.params.BatchSize),
-		acc/float64(s.params.BatchSize))
+	ctx.Log().Debugf("loss=%.3f acc=%.3f", loss/float64(dataSize),
+		acc/float64(dataSize))
 	return nil
 }
 
