@@ -18,7 +18,17 @@ CREATE STREAM ml_mnist_eval AS SELECT RSTREAM
 ;
 
 -- logging accuracy, execute the query in other shell
--- SELECT RSTREAM count(me:pred) / 10000.0 AS acc FROM ml_mnist_eval [RANGE 10000 TUPLES] AS me WHERE me:pred = me:label;
+CREATE STREAM ml_mnist_acc AS SELECT RSTREAM
+    count(me:pred) / 10000.0 AS acc
+    FROM ml_mnist_eval [RANGE 10000 TUPLES] AS me
+    WHERE me:pred = me:label
+;
 
--- resume in other shell
--- RESUME SOURCE mnist_test_data;
+CREATE SINK ml_mnist_acc_log TYPE file
+    WITH path='data/acc_log.jsonl',
+         truncate=true
+;
+
+-- eval test data
+INSERT INTO ml_mnist_acc_log FROM ml_mnist_acc
+;

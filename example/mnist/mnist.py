@@ -37,6 +37,8 @@ class MNIST(object):
     @staticmethod
     def load(filepath, n_in=784, n_units=1000, n_out=10, gpu=-1):
         self = MNIST()
+        # TODO should not depend on function parameter,
+        # model parameter should load from serialized data
         model = L.Classifier(MnistMLP(n_in, n_units, n_out))
         serializers.load_npz(filepath, model)
         if gpu >= 0:

@@ -33,12 +33,21 @@ CREATE STATE ml_mnist TYPE pymlstate
          gpu=-1
 ;
 
-CREATE SINK ml_mnist_trainer TYPE uds
-    WITH name='ml_mnist'
+CREATE STREAM ml_mnist_fit AS SELECT RSTREAM
+    pymlstate_fit('ml_mnist', mde:data) AS ret
+    FROM mnist_data_epoch [RANGE 1 TUPLES] AS mde
 ;
 
--- training (using shared sink)
-INSERT INTO ml_mnist_trainer SELECT RSTREAM
-    mdb:data AS data
-    FROM mnist_data_epoch [RANGE 1 TUPLES] AS mdb
+CREATE SINK ml_mnist_trainer TYPE file
+    WITH path='data/trained.jsonl',
+         truncate=true
+;
+
+-- loss & accracy
+CREATE STREAM ml_mnist_fit_result AS SELECT RSTREAM
+    mmf:ret[0] / 100.0 AS loss,
+    mmf:ret[1] / 100.0 AS accuracy
+    FROM ml_mnist_fit [RANGE 1 TUPLES] AS mmf
+;
+INSERT INTO ml_mnist_trainer FROM ml_mnist_fit_result
 ;
