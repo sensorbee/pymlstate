@@ -1,9 +1,9 @@
 package plugin
 
 import (
-	"pfi/sensorbee/pymlstate/example/mnist"
-	"pfi/sensorbee/sensorbee/bql"
-	"pfi/sensorbee/sensorbee/bql/udf"
+	"gopkg.in/sensorbee/pymlstate.v0/example/mnist"
+	"gopkg.in/sensorbee/sensorbee.v0/bql"
+	"gopkg.in/sensorbee/sensorbee.v0/bql/udf"
 )
 
 func init() {

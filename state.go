@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ugorji/go/codec"
+	"gopkg.in/sensorbee/py.v0/pystate"
+	"gopkg.in/sensorbee/sensorbee.v0/core"
+	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"io"
-	"pfi/sensorbee/py/pystate"
-	"pfi/sensorbee/sensorbee/core"
-	"pfi/sensorbee/sensorbee/data"
 	"sync"
 )
 
