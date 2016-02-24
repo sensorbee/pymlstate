@@ -18,7 +18,7 @@ sensorbee/py supports only Python 2.x .
 Use develop branch.
 
 ```bash
-cd $GOPATH/src/pfi/sensorbee/sensorbee/cmd/build_sensorbee
+cd $GOPATH/src/gopkg.in/sensorbee/sensorbee.v0/cmd/build_sensorbee
 go install
 ```
 
@@ -28,7 +28,7 @@ go install
 * data: For MNIST train/test files, and SensorBee puts log file.
 
 ```bash
-cd $GOPATH/src/pfi/sensorbee/pymlstate/example/mnist/sensorbee
+cd $GOPATH/src/gopkg.in/sensorbee/pymlstate.v0/example/mnist/sensorbee
 mkdir uds
 mkdir data
 ```
@@ -51,9 +51,9 @@ build_sensorbee --download-plugins=false
 ```yaml
 --- # SensorBee plug-in list
 plugins:
-- pfi/sensorbee/py/pystate/plugin
-- pfi/sensorbee/pymlstate/plugin
-- pfi/sensorbee/pymlstate/example/mnist/plugin
+- gopkg.in/sensorbee/py.v0/pystate/plugin
+- gopkg.in/sensorbee/pymlstate.v0/plugin
+- gopkg.in/sensorbee/pymlstate.v0/example/mnist/plugin
 ```
 
 # Training
