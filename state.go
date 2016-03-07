@@ -272,6 +272,16 @@ func Predict(ctx *core.Context, stateName string, dt data.Value) (data.Value, er
 	return s.Predict(ctx, dt)
 }
 
+// Flush pymlstate bucket. A return value is always nil.
+func Flush(ctx *core.Context, stateName string) (data.Value, error) {
+	s, err := lookupState(ctx, stateName)
+	if err != nil {
+		return nil, err
+	}
+	s.bucket = s.bucket[:0]
+	return nil, nil
+}
+
 func lookupState(ctx *core.Context, stateName string) (*State, error) {
 	st, err := ctx.SharedStates.Get(stateName)
 	if err != nil {
