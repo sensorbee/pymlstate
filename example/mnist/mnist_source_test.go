@@ -10,23 +10,6 @@ import (
 	"testing"
 )
 
-func TestRondomPermutation(t *testing.T) {
-	Convey("Given a normal permutation", t, func() {
-		org := make([]int, 100, 100)
-		perm := make([]int, 100, 100)
-		for i := range org {
-			org[i] = i
-			perm[i] = i
-		}
-		Convey("When a permutation is randomized", func() {
-			randomPermutation(perm)
-			Convey("Then the permutation should be randomized (rarely correspond together, 1/9.33e157 will happen)", func() {
-				So(perm, ShouldNotResemble, org)
-			})
-		})
-	})
-}
-
 func TestCreateSource(t *testing.T) {
 	ctx := &core.Context{}
 	ioParams := &bql.IOParams{}
@@ -38,7 +21,6 @@ func TestCreateSource(t *testing.T) {
 				"labels_file_name":   data.String("_test_train_label"),
 				"data_size":          data.Int(1),
 				"image_element_size": data.Int(1),
-				"random":             data.True,
 			}
 			requiredParam := []string{
 				"images_file_name", "labels_file_name", "data_size",
@@ -91,7 +73,6 @@ func TestCreateSource(t *testing.T) {
 				"labels_file_name":   data.String("_test_train_label"),
 				"data_size":          data.Int(1),
 				"image_element_size": data.Int(1),
-				"random":             data.False,
 			}
 			Convey("Then the creator should return not found error", func() {
 				s, err := createMNISTDataSource(ctx, ioParams, params)
@@ -105,7 +86,6 @@ func TestCreateSource(t *testing.T) {
 				So(len(ms.target), ShouldEqual, 1)
 				So(ms.imageElemSize, ShouldEqual, 1)
 				So(ms.dataSize, ShouldEqual, 1)
-				So(ms.randomFlag, ShouldBeFalse)
 			})
 		})
 		Convey("When get parameters which set only required values", func() {
@@ -126,7 +106,6 @@ func TestCreateSource(t *testing.T) {
 				So(len(ms.target), ShouldEqual, 1)
 				So(ms.imageElemSize, ShouldEqual, 28*28)
 				So(ms.dataSize, ShouldEqual, 1)
-				So(ms.randomFlag, ShouldBeTrue)
 			})
 		})
 	})

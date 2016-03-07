@@ -84,7 +84,7 @@ func (sf *epochUDSF) Process(ctx *core.Context, t *core.Tuple,
 		ind := make([]int, bucketNum, bucketNum)
 		copy(ind, perm)
 		if sf.random {
-			randomPermutaion(ind)
+			randomPermutation(ind)
 		}
 		inds := make([][]int, batchNum, batchNum)
 		for j := 0; j < n; j++ {
@@ -125,7 +125,7 @@ func (sf *epochUDSF) Process(ctx *core.Context, t *core.Tuple,
 	return nil
 }
 
-func randomPermutaion(perm []int) {
+func randomPermutation(perm []int) {
 	for i := range perm {
 		j := rand.Intn(i + 1)
 		perm[i], perm[j] = perm[j], perm[i]

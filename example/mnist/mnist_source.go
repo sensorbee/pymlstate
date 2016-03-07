@@ -6,7 +6,6 @@ import (
 	"gopkg.in/sensorbee/sensorbee.v0/core"
 	"gopkg.in/sensorbee/sensorbee.v0/data"
 	"io"
-	"math/rand"
 	"os"
 	"time"
 )
@@ -20,7 +19,6 @@ type mnistDataSource struct {
 	target        []int32
 	dataSize      int
 	imageElemSize int
-	randomFlag    bool
 }
 
 var (
@@ -28,7 +26,6 @@ var (
 	labelsFileNamePath = data.MustCompilePath("labels_file_name")
 	dataSizePath       = data.MustCompilePath("data_size")
 	imageElemSizePath  = data.MustCompilePath("image_element_size")
-	randomFlagPath     = data.MustCompilePath("random")
 	rewindPath         = data.MustCompilePath("rewind")
 )
 
@@ -39,12 +36,15 @@ var (
 // MNIST data is ubyte data, and parse when the source is created. Returns
 // an error when cannot load MNIST file or parsing error.
 //
-// WITH parameters:
-//  images_file_name:   MNIST images nbytes file path [required]
-//  labels_file_name:   MNIST labels nbytes file path [required]
-//  data_size:          MNIST data size [required]
-//  image_element_size: MNIST image element size (default: 784=28*28)
-//  random:             randomize data on/off (default: true)
+// WITH parameters
+//
+// images_file_name: MNIST images nbytes file path [required]
+//
+// labels_file_name: MNIST labels nbytes file path [required]
+//
+// data_size: MNIST data size [required]
+//
+// image_element_size: MNIST image element size (default: 784=28*28)
 func (s *DataSourceCreator) CreateSource(ctx *core.Context, ioParams *bql.IOParams,
 	params data.Map) (core.Source, error) {
 	ms, err := createMNISTDataSource(ctx, ioParams, params)
@@ -100,14 +100,6 @@ func createMNISTDataSource(ctx *core.Context, ioParams *bql.IOParams,
 		imageElemSize = int(iesInt)
 	}
 
-	randomFlag := true
-	if flag, err := params.Get(randomFlagPath); err == nil {
-		randomFlag, err = data.AsBool(flag)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	target, data, err := getMNISTRawData(imagesDataName, labelsDataName, dataSize,
 		imageElemSize)
 	if err != nil {
@@ -119,7 +111,6 @@ func createMNISTDataSource(ctx *core.Context, ioParams *bql.IOParams,
 		target:        target,
 		dataSize:      dataSize,
 		imageElemSize: imageElemSize,
-		randomFlag:    randomFlag,
 	}
 
 	return ms, nil
@@ -187,33 +178,9 @@ func (s *mnistDataSource) GenerateStream(ctx *core.Context, w core.Writer) error
 		perm[i] = i
 	}
 
-	// re-index to randomize
-	label := make([]int32, s.dataSize, s.dataSize)
-	image := make([][]float32, s.dataSize, s.dataSize)
-	for i := range image {
-		image[i] = make([]float32, s.imageElemSize, s.imageElemSize)
-	}
-
-	if s.randomFlag {
-		randomPermutation(perm)
-		for i, p := range perm {
-			label[i] = s.target[p]
-			for j, d := range s.data[p] {
-				image[i][j] = d
-			}
-		}
-	} else {
-		for i, l := range s.target {
-			label[i] = l
-			for j, d := range s.data[i] {
-				image[i][j] = d
-			}
-		}
-	}
-
-	for i, l := range label {
-		im := make(data.Array, len(image[i]), len(image[i]))
-		for j, d := range image[i] {
+	for i, l := range s.target {
+		im := make(data.Array, len(s.data[i]), len(s.data[i]))
+		for j, d := range s.data[i] {
 			im[j] = data.Float(d)
 		}
 		dm := data.Map{
@@ -255,11 +222,4 @@ func (s *dataSource) reader() (*bufio.Reader, io.Closer, error) {
 	}
 	r := bufio.NewReader(f)
 	return r, f, nil
-}
-
-func randomPermutation(perm []int) {
-	for i := range perm {
-		j := rand.Intn(i + 1)
-		perm[i], perm[j] = perm[j], perm[i]
-	}
 }

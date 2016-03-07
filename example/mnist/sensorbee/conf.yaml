@@ -1,5 +1,5 @@
 network:
-  listen_on: ':8090'
+  listen_on: ':15601'
 topologies:
   mnist:
     bql_file: 'load_model.bql'
