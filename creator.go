@@ -30,8 +30,7 @@ func (c *StateCreator) CreateState(ctx *core.Context, params data.Map) (
 		return nil, err
 	}
 
-	// TODO: extract this code block as ExtractMLParams function
-	batchSize := 10
+	batchSize := 1
 	if bs, err := params.Get(batchTrainSizePath); err == nil {
 		var batchSize64 int64
 		if batchSize64, err = data.AsInt(bs); err != nil {
