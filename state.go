@@ -13,9 +13,7 @@ import (
 )
 
 var (
-	datPath  = data.MustCompilePath("data")
-	lossPath = data.MustCompilePath("loss")
-	accPath  = data.MustCompilePath("accuracy")
+	datPath = data.MustCompilePath("data")
 )
 
 // State is python instance specialized to multiple layer classification.
@@ -79,7 +77,6 @@ func (s *State) Write(ctx *core.Context, t *core.Tuple) error {
 		return err
 	}
 
-	dataSize := s.params.BatchSize
 	if s.params.BatchSize > 1 {
 		s.bucket = append(s.bucket, dataSet)
 		if len(s.bucket) < s.params.BatchSize {
@@ -89,13 +86,12 @@ func (s *State) Write(ctx *core.Context, t *core.Tuple) error {
 		if dataSet.Type() == data.TypeArray {
 			arr, _ := data.AsArray(dataSet)
 			s.bucket = arr
-			dataSize = len(arr)
 		} else {
 			s.bucket = []data.Value{dataSet}
 		}
 	}
 
-	m, err := s.fit(ctx, s.bucket)
+	_, err = s.fit(ctx, s.bucket)
 	prevBucketSize := len(s.bucket)
 	s.bucket = s.bucket[:0] // clear slice but keep capacity
 	if err != nil {
@@ -104,28 +100,6 @@ func (s *State) Write(ctx *core.Context, t *core.Tuple) error {
 		return err
 	}
 
-	// TODO: add option to toggle the following logging
-
-	ret, err := data.AsArray(m)
-	if err != nil || len(ret) != 2 {
-		// The following log is optional. So, it isn't a error even if the
-		// result doesn't have accuracy and loss fields.
-		// TODO: write a warning log after the logging option is added.
-		return nil
-	}
-
-	loss, err := data.ToFloat(ret[0])
-	if err != nil {
-		// TODO: add warning
-		return nil
-	}
-
-	acc, err := data.ToFloat(ret[1])
-	if err != nil {
-		return nil
-	}
-	ctx.Log().Debugf("loss=%.3f acc=%.3f", loss/float64(dataSize),
-		acc/float64(dataSize))
 	return nil
 }
 

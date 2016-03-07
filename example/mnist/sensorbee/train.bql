@@ -29,7 +29,6 @@ CREATE STATE ml_mnist TYPE pymlstate
     WITH module_path="../",
          module_name="mnist", -- mnist.py
          class_name="MNIST",
-         batch_train_size=1,
          gpu=-1
 ;
 
