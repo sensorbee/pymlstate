@@ -47,11 +47,11 @@ func TestBucketStoreUDSFProcess(t *testing.T) {
 		}
 		ss, err := NewBucketState(ctx, params)
 		So(err, ShouldBeNil)
-		err = ctx.SharedStates.Add("bucket", "bucket", ss)
+		err = ctx.SharedStates.Add("test_bucket", "bucket_state", ss)
 		So(err, ShouldBeNil)
 
 		udsf := bucketStoreUDSF{
-			bucketName: "bucket",
+			bucketName: "test_bucket",
 		}
 
 		Convey("When three tuples are processed", func() {
