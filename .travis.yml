@@ -1,0 +1,36 @@
+language: go
+go:
+  - 1.4.3
+  - 1.5.3
+  - 1.6
+
+sudo: true
+
+notifications:
+  email: false
+
+before_install:
+  - env
+  - lsb_release -a
+  - sudo apt-get -qq update
+  - sudo apt-get -qq install python-dev python-six pkg-config
+  - go version
+
+install:
+  - go get golang.org/x/tools/cmd/vet
+  - if [ "$TRAVIS_GO_VERSION" != "1.4.3" ]; then go get github.com/golang/lint/golint; fi
+  - go get github.com/mattn/goveralls
+  - go get golang.org/x/tools/cmd/cover
+  - go get github.com/pierrre/gotestcover
+  - go get -t -d -v ./...
+
+before_script:
+  - go vet ./...
+  - if [ "$TRAVIS_GO_VERSION" != "1.4.3" ]; then golint ./... | tee .golint.txt && test ! -s .golint.txt; fi
+
+script:
+  - go build -v ./...
+  - gotestcover -v -covermode=count -coverprofile=.profile.cov -parallelpackages=1 ./...
+
+after_success:
+  - if [ "$TRAVIS_GO_VERSION" = "1.6" ]; then goveralls -coverprofile=.profile.cov -repotoken $COVERALLS_TOKEN; fi
