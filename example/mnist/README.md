@@ -4,7 +4,7 @@ Call chainer MNIST sample code from SensorBee.
 
 ## 1. link python
 
-sensorbee/py plugin is required to link SensorBee and Python Use pkg-config, detail:  [Set up to link python](https://github.pfidev.jp/sensorbee/py#set-up-to-link-python)
+sensorbee/py plugin is required to link SensorBee and Python Use pkg-config, detail:  [Set up to link python](https://github.com/sensorbee/py#set-up-to-link-python)
 
 sensorbee/py supports only Python 2.x .
 
