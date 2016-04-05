@@ -15,8 +15,6 @@ sensorbee/py supports only Python 2.x .
 
 ## 3. install build_sensorbee
 
-Use develop branch.
-
 ```bash
 cd $GOPATH/src/gopkg.in/sensorbee/sensorbee.v0/cmd/build_sensorbee
 go install
