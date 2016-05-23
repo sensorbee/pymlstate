@@ -1,13 +1,15 @@
 language: go
 go:
   - 1.4.3
-  - 1.5.3
-  - 1.6
+  - 1.5.4
+  - 1.6.2
 
 sudo: true
 
 notifications:
   email: false
+
+go_import_path: gopkg.in/sensorbee/pymlstate.v0
 
 before_install:
   - env
@@ -17,7 +19,6 @@ before_install:
   - go version
 
 install:
-  - go get golang.org/x/tools/cmd/vet
   - if [ "$TRAVIS_GO_VERSION" != "1.4.3" ]; then go get github.com/golang/lint/golint; fi
   - go get github.com/mattn/goveralls
   - go get golang.org/x/tools/cmd/cover
@@ -25,7 +26,7 @@ install:
   - go get -t -d -v ./...
 
 before_script:
-  - go vet ./...
+  - if [ "$TRAVIS_GO_VERSION" != "1.4.3" ]; then go vet ./...; fi
   - if [ "$TRAVIS_GO_VERSION" != "1.4.3" ]; then golint ./... | tee .golint.txt && test ! -s .golint.txt; fi
 
 script:
@@ -33,4 +34,4 @@ script:
   - gotestcover -v -covermode=count -coverprofile=.profile.cov -parallelpackages=1 ./...
 
 after_success:
-  - if [ "$TRAVIS_GO_VERSION" = "1.6" ]; then goveralls -coverprofile=.profile.cov -repotoken $COVERALLS_TOKEN; fi
+  - if [ "$TRAVIS_GO_VERSION" = "1.6.2" ]; then goveralls -coverprofile=.profile.cov -repotoken $COVERALLS_TOKEN; fi
