@@ -9,6 +9,8 @@ sudo: true
 notifications:
   email: false
 
+go_import_path: gopkg.in/sensorbee/pymlstate.v0
+
 before_install:
   - env
   - lsb_release -a
