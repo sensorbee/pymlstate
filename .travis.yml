@@ -30,4 +30,4 @@ script:
   - gotestcover -v -covermode=count -coverprofile=.profile.cov -parallelpackages=1 ./...
 
 after_success:
-  - goveralls -coverprofile=.profile.cov -repotoken $COVERALLS_TOKEN
+  - goveralls -coverprofile=.profile.cov -repotoken=$COVERALLS_TOKEN
